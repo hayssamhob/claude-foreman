@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import click
 
@@ -43,6 +44,84 @@ _ide_opt = click.option(
     type=click.Choice(["windsurf", "antigravity", "cursor"]),
     help="Target IDE.",
 )
+
+
+def _dispatch_issue_core(
+    issue,
+    worktree: str,
+    branch: str,
+    ide: str,
+    repo: str,
+    number: int,
+    new_window: bool = True,
+    comment_body: Optional[str] = None,
+) -> dict:
+    """Shared logic: dirty check → pre-flight → workspace → dispatch.
+
+    Exits on error. Returns a dict with dispatch metadata.
+    """
+    from foreman.github import (
+        format_issue_prompt,
+        post_issue_comment,
+        worktree_is_dirty,
+    )
+    from foreman.drivers.ide_driver import IDEDriver
+
+    # Dirty worktree guard
+    dirty = worktree_is_dirty(worktree)
+    if dirty:
+        click.echo(
+            f"❌ Worktree has {len(dirty)} uncommitted change(s) — clean up first:",
+            err=True,
+        )
+        for line in dirty[:10]:
+            click.echo(f"   {line}", err=True)
+        sys.exit(1)
+
+    # Pre-flight
+    loop = SupervisorLoop.from_defaults()
+    pf = loop.pre_flight_check(worktree, ide=ide, expected_branch=branch)
+    if not pf.ready:
+        for msg in pf.issues:
+            click.echo(f"❌ {msg}", err=True)
+        sys.exit(1)
+    click.echo(f"  Pre-flight: HEAD {pf.head[:7]} on {pf.local_branch} ✅", err=True)
+
+    # GitHub comment
+    if comment_body:
+        try:
+            post_issue_comment(repo, number, comment_body)
+        except Exception as e:
+            click.echo(f"⚠️  Could not post dispatch comment: {e}", err=True)
+
+    # Open workspace
+    config = SupervisorConfig.default()
+    driver = IDEDriver(config)
+    if new_window:
+        try:
+            driver.open_workspace(ide, worktree)
+            time.sleep(2)
+        except Exception as e:
+            click.echo(f"⚠️  open_workspace: {e} — continuing anyway", err=True)
+
+    # Dispatch
+    prompt = format_issue_prompt(issue, worktree, branch)
+    try:
+        driver.send(ide, prompt, worktree=worktree)
+    except Exception as e:
+        click.echo(f"❌ Dispatch failed: {e}", err=True)
+        sys.exit(1)
+
+    click.echo(f"  Dispatched #{issue.number} → {ide} ✅", err=True)
+
+    return {
+        "head": pf.head,
+        "worktree": worktree,
+        "branch": branch,
+        "repo": repo,
+        "number": number,
+        "title": issue.title,
+    }
 
 
 # ── CLI group ────────────────────────────────────────────────────────────────
@@ -204,10 +283,12 @@ def dispatch_issue(
         foreman wait --worktree "$WORKTREE" --pre-head "$PRE_HEAD" \\
             --issue owner/repo#42 --auto-pr
     """
-    from foreman.github import (parse_issue_ref as _parse, fetch_issue, ensure_branch,
-                                ensure_issue_worktree, format_issue_prompt,
-                                post_issue_comment, worktree_is_dirty)
-    from foreman.drivers.ide_driver import IDEDriver
+    from foreman.github import (
+        parse_issue_ref as _parse,
+        fetch_issue,
+        ensure_branch,
+        ensure_issue_worktree,
+    )
 
     # ── Fetch issue ─────────────────────────────────────────────────
     try:
@@ -247,62 +328,16 @@ def dispatch_issue(
 
     click.echo(f"  Branch: {used_branch}", err=True)
 
-    # ── Dirty worktree guard ─────────────────────────────────────────
-    dirty = worktree_is_dirty(worktree)
-    if dirty:
-        click.echo(f"❌ Worktree has {len(dirty)} uncommitted change(s) — clean up first:", err=True)
-        for line in dirty[:10]:
-            click.echo(f"   {line}", err=True)
-        sys.exit(1)
-
-    # ── Pre-flight ──────────────────────────────────────────────────
-    loop = SupervisorLoop.from_defaults()
-    pf = loop.pre_flight_check(worktree, ide=ide, expected_branch=used_branch)
-    if not pf.ready:
-        for msg in pf.issues:
-            click.echo(f"❌ {msg}", err=True)
-        sys.exit(1)
-    click.echo(f"  Pre-flight: HEAD {pf.head[:7]} on {pf.local_branch} ✅", err=True)
-
-    # ── GitHub comment: dispatch notice ─────────────────────────────
-    if comment:
-        try:
-            post_issue_comment(repo, number,
-                f"🤖 **Dispatched to {ide}** on branch `{used_branch}` "
-                f"at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}.\n\n"
-                f"Working autonomously — will post a PR link when done.")
-        except Exception as e:
-            click.echo(f"⚠️  Could not post dispatch comment: {e}", err=True)
-
-    # ── Open workspace ──────────────────────────────────────────────
-    config = SupervisorConfig.default()
-    driver = IDEDriver(config)
-    if new_window:
-        try:
-            driver.open_workspace(ide, worktree)
-            time.sleep(2)
-        except Exception as e:
-            click.echo(f"⚠️  open_workspace: {e} — continuing anyway", err=True)
-
-    # ── Dispatch ────────────────────────────────────────────────────
-    prompt = format_issue_prompt(issue, worktree, used_branch)
-    try:
-        driver.send(ide, prompt, worktree=worktree)
-    except Exception as e:
-        click.echo(f"❌ Dispatch failed: {e}", err=True)
-        sys.exit(1)
-
-    click.echo(f"  Dispatched #{issue.number} → {ide} ✅", err=True)
-
-    # JSON on stdout — caller extracts head + worktree for wait/verify
-    click.echo(json.dumps({
-        "head": pf.head,
-        "worktree": worktree,
-        "branch": used_branch,
-        "repo": repo,
-        "number": number,
-        "title": issue.title,
-    }))
+    comment_body = (
+        f"🤖 **Dispatched to {ide}** on branch `{used_branch}` "
+        f"at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}.\n\n"
+        f"Working autonomously — will post a PR link when done."
+    ) if comment else None
+    result = _dispatch_issue_core(
+        issue, worktree, used_branch, ide, repo, number,
+        new_window=new_window, comment_body=comment_body,
+    )
+    click.echo(json.dumps(result))
 
 
 # ── Phase 2: Wait ────────────────────────────────────────────────────────────
@@ -580,64 +615,22 @@ def create_and_dispatch(
     url = created["url"]
     click.echo(f"  Created #{number}: {url}", err=True)
 
-    # ── Delegate to dispatch-issue logic (invoke as sub-command) ─────
-    # Re-use dispatch-issue via Click's invoke mechanism
-    from foreman.github import (fetch_issue, ensure_branch, format_issue_prompt,
-                                post_issue_comment, worktree_is_dirty)
-    from foreman.drivers.ide_driver import IDEDriver
+    from foreman.github import fetch_issue, ensure_branch
 
     issue = fetch_issue(repo, number)
     used_branch = ensure_branch(worktree, issue)
     click.echo(f"  Branch: {used_branch}", err=True)
 
-    dirty = worktree_is_dirty(worktree)
-    if dirty:
-        click.echo("❌ Worktree has uncommitted changes — clean up first.", err=True)
-        sys.exit(1)
-
-    loop = SupervisorLoop.from_defaults()
-    pf = loop.pre_flight_check(worktree, ide=ide, expected_branch=used_branch)
-    if not pf.ready:
-        for msg in pf.issues:
-            click.echo(f"❌ {msg}", err=True)
-        sys.exit(1)
-    click.echo(f"  Pre-flight: HEAD {pf.head[:7]} ✅", err=True)
-
-    if comment:
-        try:
-            post_issue_comment(repo, number,
-                f"🤖 **Dispatched to {ide}** on branch `{used_branch}` "
-                f"at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}.")
-        except Exception as e:
-            click.echo(f"⚠️  Comment failed: {e}", err=True)
-
-    config = SupervisorConfig.default()
-    driver = IDEDriver(config)
-    if new_window:
-        try:
-            driver.open_workspace(ide, worktree)
-            time.sleep(2)
-        except Exception as e:
-            click.echo(f"⚠️  open_workspace: {e}", err=True)
-
-    prompt = format_issue_prompt(issue, worktree, used_branch)
-    try:
-        driver.send(ide, prompt, worktree=worktree)
-    except Exception as e:
-        click.echo(f"❌ Dispatch failed: {e}", err=True)
-        sys.exit(1)
-
-    click.echo(f"  Dispatched #{number} → {ide} ✅", err=True)
-
-    click.echo(json.dumps({
-        "head": pf.head,
-        "worktree": worktree,
-        "branch": used_branch,
-        "repo": repo,
-        "number": number,
-        "title": title,
-        "url": url,
-    }))
+    comment_body = (
+        f"🤖 **Dispatched to {ide}** on branch `{used_branch}` "
+        f"at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}."
+    ) if comment else None
+    result = _dispatch_issue_core(
+        issue, worktree, used_branch, ide, repo, number,
+        new_window=new_window, comment_body=comment_body,
+    )
+    result["url"] = url
+    click.echo(json.dumps(result))
 
 
 # ── Queue ─────────────────────────────────────────────────────────────────────
