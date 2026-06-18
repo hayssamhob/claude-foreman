@@ -6,6 +6,8 @@ export interface JuniorReport {
   summary?: string;
   didNotDo?: string;
   testsRun?: string;
+  testsPassed?: boolean;
+  testsOutput?: string;
   prTitle?: string;
   pointFixes?: { n: number; what: string }[];
   threadReplies?: { n: number; reply: string; fixed?: boolean }[];
@@ -31,7 +33,7 @@ TASK #${args.issue}: ${args.title}
 ${args.spec}
 
 When done, output ONLY a JSON object (no prose, no code fences):
-{"summary": "<what you did, as 3-8 markdown bullet points>", "didNotDo": "<anything the spec asked that you could not do, and why — or empty string>", "testsRun": "<test command(s) you ran and their results — or 'none'>", "prTitle": "<concise PR title for this change>"}`;
+{"summary": "<what you did, as 3-8 markdown bullet points>", "didNotDo": "<anything the spec asked that you could not do, and why — or empty string>", "testsRun": "<test command(s) you ran and their results — or 'none'>", "testsPassed": <true if all tests passed, false if any failed or you did not run them>, "testsOutput": "<last ~20 lines of test output — only if testsPassed is false>", "prTitle": "<concise PR title for this change>"}`;
 }
 
 export function revisionPrompt(args: {

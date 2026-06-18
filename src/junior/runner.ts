@@ -169,6 +169,16 @@ async function runWork(
       return;
     }
 
+    if (!report.testsPassed) {
+      await fail(
+        task,
+        store,
+        octokit,
+        `Tests did not pass — refusing to open a PR.\n\n${report.testsOutput || report.testsRun || "No test output reported."}`.trim()
+      );
+      return;
+    }
+
     await push(dir, branch, token);
     const { data: pr } = await octokit.rest.pulls.create({
       owner,
