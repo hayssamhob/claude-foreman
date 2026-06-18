@@ -64,6 +64,9 @@ export const config = {
   /** ntfy.sh topic for push notifications; empty = notifications off. */
   ntfyTopic: process.env.NTFY_TOPIC ?? "",
   ntfyServer: process.env.NTFY_SERVER ?? "https://ntfy.sh",
+  maxUsd: process.env.MAX_USD ? parseFloat(process.env.MAX_USD) : undefined,
+  maxTokens: process.env.MAX_TOKENS ? parseInt(process.env.MAX_TOKENS, 10) : undefined,
+  maxQueue: process.env.MAX_QUEUE ? parseInt(process.env.MAX_QUEUE, 10) : undefined,
   /**
    * The in-process junior: a headless Claude Code session that claims tasks
    * routed to `agent:claude`, codes them in a local workspace clone, and
