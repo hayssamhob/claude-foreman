@@ -9,6 +9,7 @@ import { RateLimitedError } from "../ratelimit.js";
 import type { JobRow, Store } from "../state/db.js";
 import { decomposePrompt, reviewPrompt } from "./prompts.js";
 import { ManagerUnavailableError, runManager } from "./runner.js";
+import { assembleContextPacket, formatContextPacket } from "../context.js";
 import { routeOutcome } from "../referee/outcome.js";
 
 const MAX_DIFF_CHARS = 60_000;
@@ -99,6 +100,9 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
     throw new Error("manager returned no tasks");
   }
 
+  const packet = await assembleContextPacket(octokit, job.repo);
+  const contextPacketMd = formatContextPacket(packet);
+
   const created: string[] = [];
   for (const t of result.tasks) {
     const agent = config.agents.includes(t.agent?.toLowerCase()) ? t.agent.toLowerCase() : config.agents[0];
@@ -107,14 +111,14 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
       repo,
       title: t.title,
       labels: [LABEL_TASK, agentLabel(agent), statusLabel("queued")],
-      body: buildTaskBody(t.spec, agent, job.issue, job.repo, 0, t.doneContract ?? []),
+      body: buildTaskBody(t.spec, agent, job.issue, job.repo, 0, Array.isArray(t.doneContract) ? t.doneContract : [], contextPacketMd),
     });
     // The assignment header needs the issue's own number, known only after creation
     await octokit.rest.issues.update({
       owner,
       repo,
       issue_number: issue.number,
-      body: buildTaskBody(t.spec, agent, job.issue, job.repo, issue.number, t.doneContract ?? []),
+      body: buildTaskBody(t.spec, agent, job.issue, job.repo, issue.number, Array.isArray(t.doneContract) ? t.doneContract : [], contextPacketMd),
     });
     store.upsertTask({
       repo: job.repo,
@@ -135,12 +139,16 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
   });
 }
 
-export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = []): string {
+export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = [], contextPacket = ""): string {
   let human = `> Parent epic: #${epic} · Assigned to: \`${agent}\` · Work on branch \`${taskBranch(agent, taskIssue || 0)}\` and open a PR containing \`Closes #${taskIssue || "<this issue>"}\`.\n\n${spec}`;
   
   if (Array.isArray(doneContract) && doneContract.length > 0) {
     const contractList = doneContract.map((c, i) => `${i + 1}. ${c}`).join("\n");
     human += `\n\n## Done-contract\n${contractList}`;
+  }
+
+  if (contextPacket) {
+    human += `\n\n${contextPacket}`;
   }
 
   return serializeMessage(
