@@ -1,0 +1,70 @@
+<svg viewBox="0 0 980 480" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7d8590"/></marker>
+    <marker id="arG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3fb950"/></marker>
+    <marker id="arA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d29922"/></marker>
+    <linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#39d0d8"/><stop offset="1" stop-color="#3fb950"/></linearGradient>
+  </defs>
+
+  <rect width="980" height="480" rx="16" fill="#0d1117"/>
+  <rect x="1" y="1" width="978" height="478" rx="15" fill="none" stroke="#21262d"/>
+
+  <text x="490" y="42" text-anchor="middle" fill="#e6edf3" font-size="25" font-weight="700">How Foreman works — <tspan fill="#f0b72f">the governed loop</tspan></text>
+  <text x="490" y="68" text-anchor="middle" fill="#8b949e" font-size="13.5">Claude thinks · free models type · the referee makes sure it's done right</text>
+
+  <!-- 1. Issue -->
+  <rect x="22" y="150" width="120" height="120" rx="10" fill="#161b22" stroke="#30363d"/>
+  <text x="82" y="196" text-anchor="middle" font-size="26">📥</text>
+  <text x="82" y="226" text-anchor="middle" fill="#e6edf3" font-size="14" font-weight="600">GitHub</text>
+  <text x="82" y="244" text-anchor="middle" fill="#e6edf3" font-size="14" font-weight="600">issue</text>
+  <text x="82" y="261" text-anchor="middle" fill="#7d8590" font-size="11">the contract</text>
+
+  <!-- 2. Corner -->
+  <rect x="190" y="150" width="180" height="120" rx="10" fill="#161b22" stroke="#58a6ff"/>
+  <text x="280" y="180" text-anchor="middle" fill="#58a6ff" font-size="13.5" font-weight="700">🥊 THE CORNER</text>
+  <text x="280" y="206" text-anchor="middle" fill="#e6edf3" font-size="14" font-weight="600">the Coach</text>
+  <text x="280" y="231" text-anchor="middle" fill="#adbac7" font-size="12">Claude · ChatGPT · Gemini</text>
+  <text x="280" y="249" text-anchor="middle" fill="#adbac7" font-size="12">plan · decompose · verdict</text>
+  <text x="280" y="265" text-anchor="middle" fill="#7d8590" font-size="10.5">judgment only — never types</text>
+
+  <!-- 3. Ring -->
+  <rect x="418" y="150" width="196" height="120" rx="10" fill="#161b22" stroke="url(#ringg)"/>
+  <text x="516" y="180" text-anchor="middle" fill="#39d0d8" font-size="13.5" font-weight="700">THE RING</text>
+  <text x="516" y="202" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">free fighters write the code</text>
+  <rect x="430" y="214" width="70" height="20" rx="10" fill="#2d333b"/><text x="465" y="228" text-anchor="middle" fill="#79c0ff" font-size="11">DeepSeek</text>
+  <rect x="506" y="214" width="46" height="20" rx="10" fill="#2d333b"/><text x="529" y="228" text-anchor="middle" fill="#a5d6ff" font-size="11">Qwen</text>
+  <rect x="558" y="214" width="42" height="20" rx="10" fill="#2d333b"/><text x="579" y="228" text-anchor="middle" fill="#ff7eb6" font-size="11">Kimi</text>
+  <text x="516" y="259" text-anchor="middle" fill="#7d8590" font-size="11">open weights · local or best-of-N</text>
+
+  <!-- 4. Referee -->
+  <rect x="662" y="150" width="180" height="120" rx="10" fill="#161b22" stroke="#f0b72f"/>
+  <text x="752" y="180" text-anchor="middle" fill="#f0b72f" font-size="13.5" font-weight="700">⚖️ THE REFEREE</text>
+  <text x="752" y="206" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">deterministic gate</text>
+  <text x="752" y="231" text-anchor="middle" fill="#adbac7" font-size="12">tests green + AC met</text>
+  <text x="752" y="249" text-anchor="middle" fill="#adbac7" font-size="12">+ Coach verdict</text>
+  <text x="752" y="265" text-anchor="middle" fill="#7d8590" font-size="10.5">cost · circle · stall brakes</text>
+
+  <!-- outputs -->
+  <rect x="872" y="150" width="92" height="54" rx="9" fill="#12261b" stroke="#3fb950"/>
+  <text x="918" y="173" text-anchor="middle" fill="#3fb950" font-size="12.5" font-weight="700">✅ green</text>
+  <text x="918" y="191" text-anchor="middle" fill="#adbac7" font-size="11">PR / auto-merge</text>
+  <rect x="872" y="216" width="92" height="54" rx="9" fill="#2b2417" stroke="#d29922"/>
+  <text x="918" y="239" text-anchor="middle" fill="#d29922" font-size="12.5" font-weight="700">🤚 towel</text>
+  <text x="918" y="257" text-anchor="middle" fill="#adbac7" font-size="11">escalate to you</text>
+
+  <!-- arrows L->R -->
+  <line x1="144" y1="210" x2="186" y2="210" stroke="#7d8590" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="372" y1="210" x2="414" y2="210" stroke="#7d8590" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="616" y1="210" x2="658" y2="210" stroke="#7d8590" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="844" y1="186" x2="869" y2="180" stroke="#3fb950" stroke-width="2" marker-end="url(#arG)"/>
+  <line x1="844" y1="234" x2="869" y2="240" stroke="#d29922" stroke-width="2" marker-end="url(#arA)"/>
+
+  <!-- loop back: referee -> ring -->
+  <path d="M752,270 L752,330 Q752,344 738,344 L530,344 Q516,344 516,330 L516,272" fill="none" stroke="#39d0d8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ar)"/>
+  <rect x="556" y="332" width="160" height="24" rx="12" fill="#0d1117"/>
+  <text x="636" y="349" text-anchor="middle" fill="#39d0d8" font-size="11.5">⟲ another round (capped)</text>
+
+  <!-- footer -->
+  <line x1="40" y1="406" x2="940" y2="406" stroke="#21262d"/>
+  <text x="490" y="438" text-anchor="middle" fill="#7d8590" font-size="12.5">GitHub is the single source of truth — <tspan fill="#adbac7">issues · branches · checks · PR reviews · labels</tspan>. One App attributes every commit to its fighter.</text>
+</svg>

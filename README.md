@@ -1,22 +1,30 @@
+<p align="center">
+  <img src="docs/assets/social-preview.png" alt="Foreman — Claude thinks. Free models type. Foreman makes sure it's done right." width="760">
+</p>
+
+<p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2ea44f">
+  <a href="https://github.com/hayssamhob/claude-foreman/issues"><img alt="open issues" src="https://img.shields.io/github/issues/hayssamhob/claude-foreman?color=58a6ff"></a>
+  <a href="https://github.com/hayssamhob/claude-foreman/issues?q=is%3Aissue+label%3A%22good+first+issue%22"><img alt="good first issues" src="https://img.shields.io/github/issues/hayssamhob/claude-foreman/good%20first%20issue?label=good%20first%20issues&color=7057ff"></a>
+  <img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-39d0d8">
+  <img alt="building in public" src="https://img.shields.io/badge/status-building%20in%20public-f0b72f">
+</p>
+
 # Claude Foreman
 
 > Claude thinks. Free models type. Foreman makes sure it's done right.
 
 An autonomous coding supervisor that routes GitHub issues to free AI models (Kimi, Gemini) running in Windsurf, Antigravity, or Cursor — while Claude handles decomposition, review, and escalation.
 
-```
-                              CORNER (Claude)
-                      decompose | review | takeover
-                                |
-                +---------+-----+-----+---------+
-                |                                |
-        WINDSURF RING                    ANTIGRAVITY RING
-        +-----------+                    +--------------+
-        | Kimi      |                    | Gemini 3.1   |
-        | SWE 1.5   |                    | Gemini Flash |
-        +-----------+                    +--------------+
-          (quick, standard)               (complex, multi-file)
-```
+<p align="center">
+  <img src="docs/assets/how-it-works.svg" alt="How Foreman works — the governed loop: a GitHub issue goes to the Corner (Claude plans), into the Ring (free models write the code), through the Referee (tests + Coach verdict gate), and out as a merged PR or an escalation to you." width="100%">
+</p>
+
+**Manage whole projects on GitHub** — the board shows which fighter is on which issue, live:
+
+<p align="center">
+  <img src="docs/assets/fleet-board.svg" alt="Foreman fleet board — a GitHub Projects kanban (Backlog, In the Ring, Needs You, Shipped) where every card shows the agent working it." width="100%">
+</p>
 
 ## Requirements
 
