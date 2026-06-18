@@ -429,6 +429,9 @@ MCP connectors upgrade the gate from "build passes" to **"I watched it work."**
 
 ### 5.9 GitHub is the substrate, not just a message bus
 
+**GitHub is the free memory layer.** The Coach (a senior frontier model) costs tokens; GitHub doesn't. So Foreman writes project knowledge to GitHub **once** — the issue body (the canonical brief), labels, PR descriptions/reviews, and a committed [`gotchas.md`](gotchas.md) (the "AI layer" seed, §6 / M5-5) — and every Fighter dispatch **reads it for free**. The dispatcher never re-injects or re-derives in a fresh senior prompt anything already on GitHub; it *points to it*. This is the cost thesis applied to **context**: write-once, read-free. Briefing from GitHub-resident truth (M1-14) plus a deterministic claim-checker over Fighter output (M1-15) is what closes the project-fact-hallucination class the first dogfood exposed (#64).
+
+
 Most loop tools use GitHub as a dumb pipe: issues in, PRs out. Foreman uses it as the
 **verification oracle, the enforcement layer, and the human-control surface** — which is
 what turns the referee's promises from *self-asserted by Foreman's code* into *enforced
@@ -1011,6 +1014,8 @@ Conventions:
 | M1-11 | Extend the claim/lease so the `/foreman` skill participates | Fly | adopt | feat, area:daemon | `sweepLeases`/`sweepSilentAgents` (`src/leases.ts`) already prevent double-claim; extend so the skill claims through the same primitive | M1-10 |
 | M1-12 | CI is the done-contract oracle (extend `src/threads.ts` `ciStateFor`) | Middle | extend | feat, area:github | The done-contract passes only when the **authoritative GitHub Checks-API** status is green | M1-3 |
 | M1-13 | Referee verdict as native **per-signal** checks | Middle | extend | feat, area:github | `createCheck`/`concludeCheck` (`src/github.ts`) already post `Manager Review`; split into per-signal checks — `foreman/done-contract` (tests+AC), `foreman/coach-verdict` (approve/request-changes), `foreman/readiness` (trust tier) post as **gating** (required-status at L2/L3); `foreman/cost` + stall post as **informational `neutral`** (process signals, never hard-block the artifact) | M1-6 |
+| M1-14 | **Context-packet assembly per dispatch** — brief Fighters from GitHub-resident truth (issue body / `gotchas.md` / `gh label list` / file tree), not re-written by the Coach | Middle | build | feat, area:coach | A dispatch assembles the brief from GitHub-resident sources with **zero per-dispatch senior token spend**; the issue body is the canonical brief; ground-truth facts injected deterministically (kills the #64 hallucination class) | M1-1 |
+| M1-15 | **Deterministic claim-checker** — flag invented label/path/symbol references before review (`foreman/no-invented-references`) | Middle | build | feat, area:referee | Extracts every label/path/symbol/import reference in Fighter output and flags any that don't exist (`gh label list` / repo grep); runs as a pre-filter (extends M1-7) so no senior token is spent on mechanically-detectable hallucinations | M1-6 |
 
 ### M2 — First fusion + hands-on control
 
@@ -1021,7 +1026,7 @@ Conventions:
 | M2-1 | `FusionDriver` (best-of-N): N fighters, coach ranks/merges, satisfies `FighterDriver` | Heavy | build | feat, area:fusion | Loop runs an N-candidate ticket and merges the winner without loop-side changes (needs the M0-2 socket) | M0-2, M1-6 |
 | M2-2 | Test-grounded judge: feed `src/threads.ts` review context into ranking | Heavy | extend | feat, area:fusion | `prChangedFiles`/`ciStateFor`/`unresolvedThreads` is the `get_review_context` the judge needs; `runReview` ranking uses tests/build, not prose — a prettier-but-failing candidate loses | M2-1 |
 | M2-3 | `/foreman` skill to watch & steer the live loop | Middle | build | feat, area:skill | Steer mechanism is defined against the spine: **pause** = stop dispatching new jobs (hold the worker tick / set `hold`); **redirect** = requeue/reassign via `src/leases.ts` + `src/state/db.ts`; built on `GET /api/state`; ports the one-call `SKILL` discipline. Steering also works as **author-association-gated PR ChatOps** (§5.9) — plain-English `@foreman …` comments, no CLI needed | M1-6 |
-| M2-4 | Automate-vs-augment classifier at decompose (in `worker.ts`) | Middle | build | feat, area:coach | High-judgment tickets are tagged augment-only and always escalate even when green | M1-1 |
+| M2-4 | Automate-vs-augment classifier at decompose (in `worker.ts`) | Middle | build | feat, area:coach | High-judgment tickets are tagged augment-only and always escalate even when green; **no execution oracle ⇒ never auto-merge, always escalate** — docs/prose/config (no test/build/preview) are augment-only by construction regardless of tier (the #64 gap) | M1-1 |
 | M2-5 | Per-sub-agent `effort` scoping for in-process Claude sessions | Fly | extend | feat, area:coach, **good first issue** | Tier-by-stage already exists as distinct `MANAGER_CMD`/`JUNIOR_CMD`; add `effort` only where an in-process Claude session is used | M1-1 |
 
 ### M3 — Trust hardening
