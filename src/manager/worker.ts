@@ -16,7 +16,7 @@ const MAX_DIFF_CHARS = 60_000;
 export type AuthFn = (installationId: number) => Promise<Octokit>;
 
 interface DecomposeResult {
-  tasks: { title: string; agent: string; spec: string }[];
+  tasks: { title: string; agent: string; spec: string; doneContract?: string[] }[];
 }
 export interface ReviewResult {
   verdict: "approve" | "request_changes";
@@ -107,14 +107,14 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
       repo,
       title: t.title,
       labels: [LABEL_TASK, agentLabel(agent), statusLabel("queued")],
-      body: buildTaskBody(t.spec, agent, job.issue, job.repo),
+      body: buildTaskBody(t.spec, agent, job.issue, job.repo, 0, t.doneContract ?? []),
     });
     // The assignment header needs the issue's own number, known only after creation
     await octokit.rest.issues.update({
       owner,
       repo,
       issue_number: issue.number,
-      body: buildTaskBody(t.spec, agent, job.issue, job.repo, issue.number),
+      body: buildTaskBody(t.spec, agent, job.issue, job.repo, issue.number, t.doneContract ?? []),
     });
     store.upsertTask({
       repo: job.repo,
@@ -135,8 +135,14 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
   });
 }
 
-function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0): string {
-  const human = `> Parent epic: #${epic} · Assigned to: \`${agent}\` · Work on branch \`${taskBranch(agent, taskIssue || 0)}\` and open a PR containing \`Closes #${taskIssue || "<this issue>"}\`.\n\n${spec}`;
+export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = []): string {
+  let human = `> Parent epic: #${epic} · Assigned to: \`${agent}\` · Work on branch \`${taskBranch(agent, taskIssue || 0)}\` and open a PR containing \`Closes #${taskIssue || "<this issue>"}\`.\n\n${spec}`;
+  
+  if (doneContract.length > 0) {
+    const contractList = doneContract.map((c, i) => `${i + 1}. ${c}`).join("\n");
+    human += `\n\n## Done-contract\n${contractList}`;
+  }
+
   return serializeMessage(
     { v: 1, type: "assignment", from: config.managerName, to: agent, task: taskIssue },
     human
