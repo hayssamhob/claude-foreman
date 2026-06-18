@@ -13,6 +13,7 @@ import type { Store, TaskRow } from "../state/db.js";
 import { replyToThread, resolveThread, unresolvedThreads } from "../threads.js";
 import { checkoutTaskBranch, commitAll, ensureWorkspace, headSha, push } from "./git.js";
 import { isTestsPassed, revisionPrompt, workPrompt, type JuniorReport } from "./prompts.js";
+import { assembleContextPacket } from "../context.js";
 
 /**
  * The in-process junior: a headless Claude Code session that plays the same
@@ -136,9 +137,10 @@ async function runWork(
   }
 
   try {
-    const [{ data: issue }, { data: repoData }] = await Promise.all([
+    const [{ data: issue }, { data: repoData }, packet] = await Promise.all([
       octokit.rest.issues.get({ owner, repo, issue_number: task.issue }),
       octokit.rest.repos.get({ owner, repo }),
+      assembleContextPacket(octokit, task.repo),
     ]);
     const token = await installationToken(octokit);
     const dir = await ensureWorkspace(task.repo, token);
@@ -152,6 +154,7 @@ async function runWork(
         title: issue.title,
         spec: issue.body ?? "",
         branch,
+        contextPacket: packet,
       }),
       dir,
       (usd, inT, outT) => store.recordSpend(task.repo, task.issue, config.juniorAgent, "work", usd, inT, outT)

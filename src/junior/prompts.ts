@@ -1,3 +1,4 @@
+import { formatContextPacket, type ContextPacket } from "../context.js";
 import type { ThreadSummary } from "../threads.js";
 
 /** Prompt builders for the in-process Claude junior. Each expects one JSON object back. */
@@ -30,7 +31,16 @@ const COMMON_RULES = `Rules:
 - Match the repository's existing style, naming, and test conventions.
 - If the repository has tests, run them and make them pass before finishing. Report honestly — the manager verifies your claims against the diff.`;
 
-export function workPrompt(args: { repoFull: string; issue: number; title: string; spec: string; branch: string }): string {
+export function workPrompt(args: {
+  repoFull: string;
+  issue: number;
+  title: string;
+  spec: string;
+  branch: string;
+  contextPacket?: ContextPacket;
+}): string {
+  const contextBlock = args.contextPacket ? formatContextPacket(args.contextPacket) : "";
+
   return `You are "claude", a junior AI software engineer on a team run by an AI engineering manager.
 Repository: ${args.repoFull} — branch \`${args.branch}\`.
 
@@ -40,11 +50,12 @@ Implement EXACTLY this task:
 
 TASK #${args.issue}: ${args.title}
 
-${args.spec}
+${args.spec}${contextBlock}
 
 When done, output ONLY a JSON object (no prose, no code fences):
 {"summary": "<what you did, as 3-8 markdown bullet points>", "didNotDo": "<anything the spec asked that you could not do, and why — or empty string>", "testsRun": "<test command(s) you ran and their results — or 'none'>", "testsPassed": <true if all tests passed, false if any failed or you did not run them>, "testsOutput": "<last ~20 lines of test output — only if testsPassed is false>", "prTitle": "<concise PR title for this change>"}`;
 }
+
 
 export function revisionPrompt(args: {
   repoFull: string;
