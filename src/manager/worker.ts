@@ -9,6 +9,7 @@ import { RateLimitedError } from "../ratelimit.js";
 import type { JobRow, Store } from "../state/db.js";
 import { decomposePrompt, reviewPrompt } from "./prompts.js";
 import { ManagerUnavailableError, runManager } from "./runner.js";
+import { routeOutcome } from "../referee/outcome.js";
 
 const MAX_DIFF_CHARS = 60_000;
 
@@ -17,7 +18,7 @@ export type AuthFn = (installationId: number) => Promise<Octokit>;
 interface DecomposeResult {
   tasks: { title: string; agent: string; spec: string }[];
 }
-interface ReviewResult {
+export interface ReviewResult {
   verdict: "approve" | "request_changes";
   summary: string;
   plainSummary?: string;
@@ -179,7 +180,8 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
   );
 
   // Update the per-point checklist the dashboard shows
-  if (result.verdict === "approve") {
+  const outcome = routeOutcome(result);
+  if (outcome.action === "approve") {
     store.markPointsAddressed(openPoints.map((p) => p.id));
   } else {
     const addressedIds = (result.addressedPointNumbers ?? [])
@@ -189,7 +191,7 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
     if (result.points?.length) store.addRevisionPoints(job.repo, job.issue, round, result.points);
   }
 
-  if (result.verdict === "approve") {
+  if (outcome.action === "approve") {
     await concludeCheck(octokit, job.repo, job.head_sha, "success", "Approved by manager", result.summary);
     await postMessage(
       octokit,
