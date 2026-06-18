@@ -379,7 +379,7 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
   juniorTimer.unref();
 
   probot.log.info(
-    `agent-manager up — agents: [${config.agents.join(", ")}], lease TTL ${config.leaseTtlMinutes}m, ` +
+    `foreman up — agents: [${config.agents.join(", ")}], lease TTL ${config.leaseTtlMinutes}m, ` +
       `manager: ${config.managerDisabled ? "DISABLED" : config.managerCmd}, ` +
       `junior '${config.juniorAgent}': ${config.juniorEnabled ? "on" : "off"}, auto-merge: ${config.autoMerge ? "on" : "off"}`
   );

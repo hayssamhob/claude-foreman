@@ -48,7 +48,7 @@ export const config = {
   maxRevisionRounds: int("MAX_REVISION_ROUNDS", 2),
   managerCmd: process.env.MANAGER_CMD ?? 'claude -p --output-format json --tools "" --max-turns 1',
   managerDisabled: process.env.MANAGER_DISABLED === "1",
-  dbPath: process.env.DB_PATH ?? "./data/agent-manager.db",
+  dbPath: process.env.DB_PATH ?? "./data/foreman.db",
   /** This app's own repo URL, surfaced in the account-rotation handoff bundle. */
   projectRepoUrl: process.env.PROJECT_REPO_URL ?? "",
   checkName: "Manager Review",
