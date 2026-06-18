@@ -8,9 +8,9 @@ const NOW = 1_700_000_000_000;
 const REPOS = [{ fullName: "o/r", installationId: 1 }];
 
 function seed(store: Store): void {
-  store.upsertTask({ repo: "o/r", issue: 12, installation_id: 1, agent: "antigravity", status: "queued", title: "Add login" });
+  store.upsertTask({ repo: "o/r", issue: 12, installation_id: 1, agent: "ollama", status: "queued", title: "Add login" });
   store.upsertTask({ repo: "o/r", issue: 14, installation_id: 1, agent: "claude", status: "in_review", title: "Fix nav", pr: 20 });
-  store.upsertTask({ repo: "o/r", issue: 9, installation_id: 1, agent: "devin", status: "done", title: "Old work" });
+  store.upsertTask({ repo: "o/r", issue: 9, installation_id: 1, agent: "windsurf-kimi", status: "done", title: "Old work" });
   store.addRevisionPoints("o/r", 14, 1, ["use rem not px"]);
 }
 
@@ -54,7 +54,7 @@ describe("renderHandoff", () => {
 
     expect(md).toContain("## Agent availability");
     expect(md).toMatch(/\*\*Claude\*\*: rate-limited/);
-    expect(md).toMatch(/\*\*Antigravity\*\*: available/);
+    expect(md).toMatch(/\*\*Ollama\*\*: available/);
   });
 
   it("prompts you to write a note when none is saved", () => {

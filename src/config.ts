@@ -7,7 +7,7 @@ function int(name: string, fallback: number): number {
 }
 
 export const config = {
-  agents: (process.env.AGENTS ?? "antigravity,devin,claude")
+  agents: (process.env.AGENTS ?? "ollama,windsurf-kimi,claude")
     .split(",")
     .map((a) => a.trim().toLowerCase())
     .filter(Boolean),
@@ -16,14 +16,15 @@ export const config = {
    * Soft "going dark" threshold per agent: minutes of silence (no progress
    * heartbeat or push while a lease is running) after which the owner gets an
    * early "likely crashed" ping — well before the hard lease TTL reassigns the
-   * task. Tuned to each agent's polling cadence (Antigravity self-polls ~5 min,
-   * so 15 min of silence means it's down). 0 disables it — e.g. the in-process
-   * junior, which we monitor directly via its subprocess. Unlisted agents fall
-   * back to staleWarnMinutes. Format: "antigravity:15,devin:30".
+   * task. Tuned to each agent's polling cadence (Windsurf-kimi self-polls ~5 min,
+   * so 15 min of silence means it's down). 0 disables it — e.g. a local Ollama
+   * Fighter or the in-process junior, which we monitor directly via their
+   * subprocess. Unlisted agents fall back to staleWarnMinutes. Format:
+   * "windsurf-kimi:15,ollama:0".
    */
   staleWarnMinutes: int("STALE_WARN_MINUTES", 30),
   agentStaleWarn: Object.fromEntries(
-    (process.env.AGENT_STALE_WARN ?? "antigravity:15,devin:30,claude:0")
+    (process.env.AGENT_STALE_WARN ?? "ollama:0,windsurf-kimi:15,claude:0")
       .split(",")
       .map((p) => p.split(":"))
       .filter((p) => p.length === 2)
@@ -32,12 +33,12 @@ export const config = {
   ) as Record<string, number>,
   /**
    * Max tasks an agent can hold concurrently (claimed/in revision). Some
-   * agents juggle parallel branches well (Antigravity), others get confused
-   * working multiple tasks in one window (Windsurf).
-   * Format: "windsurf:1,antigravity:3"; unlisted agents default to 2.
+   * agents juggle parallel branches well (a headless Ollama Fighter), others get
+   * confused working multiple tasks in one GUI window (Windsurf-kimi).
+   * Format: "windsurf-kimi:1,ollama:3"; unlisted agents default to 2.
    */
   agentLimits: Object.fromEntries(
-    (process.env.AGENT_LIMITS ?? "antigravity:3,devin:2,claude:1")
+    (process.env.AGENT_LIMITS ?? "ollama:3,windsurf-kimi:1,claude:1")
       .split(",")
       .map((p) => p.split(":"))
       .filter((p) => p.length === 2)
