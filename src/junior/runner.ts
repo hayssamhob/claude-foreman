@@ -12,7 +12,7 @@ import { serializeMessage } from "../protocol/messages.js";
 import type { Store, TaskRow } from "../state/db.js";
 import { replyToThread, resolveThread, unresolvedThreads } from "../threads.js";
 import { checkoutTaskBranch, commitAll, ensureWorkspace, headSha, push } from "./git.js";
-import { revisionPrompt, workPrompt, type JuniorReport } from "./prompts.js";
+import { isTestsPassed, revisionPrompt, workPrompt, type JuniorReport } from "./prompts.js";
 
 /**
  * The in-process junior: a headless Claude Code session that plays the same
@@ -169,7 +169,7 @@ async function runWork(
       return;
     }
 
-    if (!report.testsPassed) {
+    if (!isTestsPassed(report.testsPassed)) {
       await fail(
         task,
         store,

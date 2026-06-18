@@ -1,43 +1,35 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { JuniorReport } from "../src/junior/prompts.js";
+import { describe, it, expect } from "vitest";
+import { isTestsPassed } from "../src/junior/prompts.js";
 
-// Test the done-contract gate logic in isolation — we extract the condition
-// rather than wiring up the full runner (which needs Octokit, git, etc.).
-// The rule: createPR must NOT be called when testsPassed is falsy.
-
-function shouldCreatePr(report: JuniorReport): boolean {
-  return report.testsPassed === true;
-}
-
-describe("done-contract gate (testsPassed)", () => {
-  it("blocks PR when testsPassed is false", () => {
-    const report: JuniorReport = { summary: "did stuff", testsPassed: false, testsOutput: "1 failed" };
-    expect(shouldCreatePr(report)).toBe(false);
+describe("isTestsPassed — done-contract gate", () => {
+  it("accepts boolean true", () => {
+    expect(isTestsPassed(true)).toBe(true);
   });
 
-  it("blocks PR when testsPassed is undefined (legacy report)", () => {
-    const report: JuniorReport = { summary: "did stuff" };
-    expect(shouldCreatePr(report)).toBe(false);
+  it("accepts stringified 'true' (LLM output)", () => {
+    expect(isTestsPassed("true")).toBe(true);
+    expect(isTestsPassed("True")).toBe(true);
+    expect(isTestsPassed("TRUE")).toBe(true);
   });
 
-  it("allows PR when testsPassed is true", () => {
-    const report: JuniorReport = { summary: "did stuff", testsPassed: true };
-    expect(shouldCreatePr(report)).toBe(true);
-  });
-});
-
-describe("JuniorReport testsPassed field", () => {
-  it("is optional and defaults to blocking", () => {
-    const report: JuniorReport = {};
-    expect(report.testsPassed).toBeUndefined();
-    expect(shouldCreatePr(report)).toBe(false);
+  it("blocks boolean false", () => {
+    expect(isTestsPassed(false)).toBe(false);
   });
 
-  it("carries testsOutput when tests fail", () => {
-    const report: JuniorReport = {
-      testsPassed: false,
-      testsOutput: "Error: expect(received).toBe(expected)\nExpected: 1\nReceived: 0",
-    };
-    expect(report.testsOutput).toContain("Error:");
+  it("blocks stringified 'false' — the truthy string bypass", () => {
+    expect(isTestsPassed("false")).toBe(false);
+    expect(isTestsPassed("False")).toBe(false);
+  });
+
+  it("blocks undefined (fumbled-JSON fallback — intentional)", () => {
+    expect(isTestsPassed(undefined)).toBe(false);
+  });
+
+  it("blocks null", () => {
+    expect(isTestsPassed(null)).toBe(false);
+  });
+
+  it("blocks empty string", () => {
+    expect(isTestsPassed("")).toBe(false);
   });
 });

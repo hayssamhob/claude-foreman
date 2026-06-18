@@ -13,6 +13,16 @@ export interface JuniorReport {
   threadReplies?: { n: number; reply: string; fixed?: boolean }[];
 }
 
+/**
+ * True only when the junior explicitly confirmed tests passed.
+ * Accepts the string "true" because LLMs frequently stringify booleans.
+ * Undefined (fumbled-JSON fallback) intentionally returns false —
+ * we'd rather fail visibly than ship unverified code.
+ */
+export function isTestsPassed(v: unknown): boolean {
+  return v === true || String(v).toLowerCase() === "true";
+}
+
 const COMMON_RULES = `Rules:
 - You are inside a checkout of the repository; the right branch is already checked out for you.
 - Do NOT use git (no commit, push, branch, stash, or config) — the harness commits, pushes, and talks to GitHub for you.
