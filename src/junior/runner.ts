@@ -12,7 +12,7 @@ import { serializeMessage } from "../protocol/messages.js";
 import type { Store, TaskRow } from "../state/db.js";
 import { replyToThread, resolveThread, unresolvedThreads } from "../threads.js";
 import { checkoutTaskBranch, commitAll, ensureWorkspace, headSha, push } from "./git.js";
-import { revisionPrompt, workPrompt, type JuniorReport } from "./prompts.js";
+import { isTestsPassed, revisionPrompt, workPrompt, type JuniorReport } from "./prompts.js";
 
 /**
  * The in-process junior: a headless Claude Code session that plays the same
@@ -165,6 +165,16 @@ async function runWork(
         store,
         octokit,
         `I could not produce any change for this task. ${report.didNotDo || report.summary || ""}`.trim()
+      );
+      return;
+    }
+
+    if (!isTestsPassed(report.testsPassed)) {
+      await fail(
+        task,
+        store,
+        octokit,
+        `Tests did not pass — refusing to open a PR.\n\n${report.testsOutput || report.testsRun || "No test output reported."}`.trim()
       );
       return;
     }
