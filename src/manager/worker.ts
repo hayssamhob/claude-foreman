@@ -10,6 +10,8 @@ import type { JobRow, Store } from "../state/db.js";
 import { decomposePrompt, reviewPrompt } from "./prompts.js";
 import { ManagerUnavailableError, runManager } from "./runner.js";
 import { routeOutcome } from "../referee/outcome.js";
+import { preFilterReview } from "../referee/prefilter.js";
+import { ciStateFor } from "../threads.js";
 
 const MAX_DIFF_CHARS = 60_000;
 
@@ -156,6 +158,29 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
 
   const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: job.pr });
   if (pr.head.sha !== job.head_sha) return; // superseded by a newer push; that push enqueued its own job
+
+  const ci = await ciStateFor(octokit, job.repo, job.pr, config.checkName);
+  const pre = preFilterReview(ci);
+  if (!pre.proceed) {
+    const round = task.revision_round + 1;
+    await concludeCheck(octokit, job.repo, job.head_sha, "failure", "Pre-filter: " + pre.reason, pre.detail);
+    const point = `Fix failing automated checks before the coach will review: ${pre.detail}`;
+    await postMessage(
+      octokit,
+      job.repo,
+      job.pr,
+      { v: 1, type: "revision-request", from: config.managerName, to: task.agent, task: job.issue, pr: job.pr, round },
+      `🔍 **Pre-filter bounce** — the coach will not review while automated checks are failing.\n\n${pre.reason}: ${pre.detail}\n\nPush fixes to this branch; the review will re-run automatically.`
+    );
+    store.addRevisionPoints(job.repo, job.issue, round, [point]);
+    store.updateTask(job.repo, job.issue, {
+      status: "changes_requested",
+      revision_round: round,
+      lease_expires_at: Date.now() + config.leaseTtlMinutes * 60_000,
+    });
+    await setStatusLabel(octokit, job.repo, job.issue, "changes_requested");
+    return;
+  }
 
   const { data: taskIssue } = await octokit.rest.issues.get({ owner, repo, issue_number: job.issue });
   const diffResp = await octokit.rest.pulls.get({
