@@ -1,0 +1,64 @@
+name: Audit Tick
+
+# The harness "buys the lock": a cheap/open-weight model audits one rotating slice of the
+# repo and files findings as GitHub issues, which flow into the same dispatch queue. No
+# frontier Coach involved — this is the work a cheap, iterable model should do again and
+# again. Coach-agnostic by design: it lives in GitHub, not in any one Coach.
+#
+# Runner: defaults to a hosted runner (no-ops cleanly when no cheap model is reachable).
+# Point it at your local Ollama by setting repo variable AUDIT_RUNNER=self-hosted on a
+# self-hosted runner, or AUDIT_MODEL_URL to any reachable Ollama-compatible endpoint.
+#   Repo → Settings → Secrets and variables → Actions → Variables:
+#     AUDIT_RUNNER     (optional) e.g. self-hosted
+#     AUDIT_MODEL_URL  (optional) default http://localhost:11434/api/generate
+#     AUDIT_MODEL      (optional) default qwen3:30b-a3b
+
+on:
+  schedule:
+    - cron: "23 7 * * *" # daily, off-peak, off the :00 mark
+  workflow_dispatch:
+    inputs:
+      slice:
+        description: "Force a slice (e.g. src/referee). Blank = daily rotation."
+        required: false
+        default: ""
+      dry_run:
+        description: "Print findings without filing issues"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: audit-tick
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ${{ vars.AUDIT_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run audit tick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_REPO: ${{ github.repository }}
+          AUDIT_MODEL_URL: ${{ vars.AUDIT_MODEL_URL }}
+          AUDIT_MODEL: ${{ vars.AUDIT_MODEL }}
+          AUDIT_SLICE: ${{ github.event.inputs.slice }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            npx tsx scripts/audit-tick.ts
+          else
+            npx tsx scripts/audit-tick.ts --file
+          fi
