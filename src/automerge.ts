@@ -57,7 +57,13 @@ export async function sweepAutoMerge(store: Store, auth: AuthFn, log: (m: string
         log(`auto-merge waiting on ${t.repo}#${t.issue} (PR #${t.pr}): ${gate.reason}`);
         continue;
       }
-      await octokit.rest.pulls.merge({ owner, repo, pull_number: t.pr!, merge_method: "squash" });
+      await octokit.rest.pulls.merge({
+        owner,
+        repo,
+        pull_number: t.pr!,
+        merge_method: "squash",
+        commit_message: t.plain_summary ? `Behavior summary: ${t.plain_summary}` : undefined,
+      });
       log(`auto-merged ${t.repo}#${t.issue} (PR #${t.pr})`);
       await postMessage(
         octokit,
