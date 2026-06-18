@@ -46,3 +46,31 @@ dispatch-then-auto-commit would have shipped a guide documenting labels that don
 - `good first issue`
 
 > Editing labels? Update this list in the same PR — it's the source a Fighter reads.
+
+---
+
+## G2 — Piping a prompt into `ollama run` corrupts the output with terminal escape codes
+
+**Symptom.** `ollama run <model> < prompt.txt > out.txt` still writes its streaming TUI to
+stdout even when stdout is a file, not a TTY: ANSI cursor-control codes (`ESC[nD`, `ESC[K`,
+cursor-up / clear-line) get interleaved with the model's tokens. On replay they reflow lines
+mid-token, so the saved file is subtly corrupted — and the build then fails (e.g.
+`error TS1002: Unterminated string literal` once a line-wrapped string gets mangled).
+
+**First seen.** [#12](https://github.com/hayssamhob/claude-foreman/issues/12) (M0-10) —
+dispatching the `src/config.ts` roster rebrand to a local Ollama Fighter. The Fighter's
+*values* were essentially right, but the piped file wouldn't compile, and an ANSI-replay
+cleaner couldn't perfectly reconstruct a line-wrapped string literal.
+
+**Rule.**
+1. **Force non-interactive output.** Drive the model through a non-TTY path: `TERM=dumb`, or
+   the HTTP API (`POST /api/generate` with `"stream": false`) which returns clean JSON, or an
+   `--format json` flag where the runner supports it. No TUI ⇒ no control codes.
+2. **Never apply a Fighter's file blind.** The build/test is the oracle — it already rejected
+   the corrupted file here. Treat a Fighter's diff as a *proposal of values*, not bytes to
+   commit.
+3. **Coach applies tiny, verified changes deterministically.** When the diff is a handful of
+   known string swaps (like this rebrand), the Coach types them in directly rather than
+   round-tripping a whole corrupted file — cheaper than re-running the Fighter, and immune to
+   TTY noise. (It also let the Coach catch a *semantic* Fighter error the bytes hid: a
+   `windsurf-kimi:3` concurrency that contradicts "one GUI window ⇒ gets confused ⇒ limit 1".)
