@@ -181,6 +181,9 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
 
   // Update the per-point checklist the dashboard shows
   const outcome = routeOutcome(result);
+  if (outcome.action === "fail") {
+    throw new Error(`Review result invalid: ${outcome.reason}`);
+  }
   if (outcome.action === "approve") {
     store.markPointsAddressed(openPoints.map((p) => p.id));
   } else {

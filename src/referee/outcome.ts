@@ -11,6 +11,9 @@ export type JobOutcome =
  * without wiring up Octokit, the DB, or the manager CLI.
  */
 export function routeOutcome(result: ReviewResult): JobOutcome {
+  if (!result || typeof result !== "object") {
+    return { action: "fail", reason: "Invalid or null review result" };
+  }
   if (result.verdict === "approve") return { action: "approve" };
   if (result.verdict === "request_changes") {
     return { action: "request_changes", points: result.points ?? [] };

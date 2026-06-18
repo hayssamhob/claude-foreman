@@ -26,4 +26,16 @@ describe("routeOutcome", () => {
     const result: ReviewResult = { verdict: "approve", summary: "lgtm", points: [] };
     expect(routeOutcome(result)).toEqual(routeOutcome(result));
   });
+
+  it("null input → { action: 'fail' }", () => {
+    expect(routeOutcome(null as unknown as ReviewResult)).toEqual({
+      action: "fail",
+      reason: "Invalid or null review result",
+    });
+  });
+
+  it("unknown verdict → { action: 'fail' }", () => {
+    const result = { verdict: "hallucinated", summary: "?", points: [] } as unknown as ReviewResult;
+    expect(routeOutcome(result).action).toBe("fail");
+  });
 });
