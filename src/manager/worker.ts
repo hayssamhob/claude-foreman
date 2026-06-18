@@ -138,7 +138,7 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
 export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = []): string {
   let human = `> Parent epic: #${epic} · Assigned to: \`${agent}\` · Work on branch \`${taskBranch(agent, taskIssue || 0)}\` and open a PR containing \`Closes #${taskIssue || "<this issue>"}\`.\n\n${spec}`;
   
-  if (doneContract.length > 0) {
+  if (Array.isArray(doneContract) && doneContract.length > 0) {
     const contractList = doneContract.map((c, i) => `${i + 1}. ${c}`).join("\n");
     human += `\n\n## Done-contract\n${contractList}`;
   }

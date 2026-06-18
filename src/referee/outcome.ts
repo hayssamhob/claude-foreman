@@ -16,7 +16,7 @@ export function routeOutcome(result: ReviewResult): JobOutcome {
   }
   if (result.verdict === "approve") return { action: "approve" };
   if (result.verdict === "request_changes") {
-    return { action: "request_changes", points: result.points ?? [] };
+    return { action: "request_changes", points: Array.isArray(result.points) ? result.points : [] };
   }
   return { action: "fail", reason: result.summary ?? "unknown" };
 }
