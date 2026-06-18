@@ -1,6 +1,6 @@
 import type { Octokit } from "../octokit.js";
 import { config } from "../config.js";
-import { concludeCheck, postMessage, setStatusLabel, splitRepo } from "../github.js";
+import { concludeCheck, postMessage, postReview, setStatusLabel, splitRepo } from "../github.js";
 import { agentLabel, LABEL_TASK, statusLabel, taskBranch } from "../protocol/labels.js";
 import { serializeMessage } from "../protocol/messages.js";
 import { notify } from "../notify.js";
@@ -227,16 +227,19 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
 
   if (outcome.action === "approve") {
     await concludeCheck(octokit, job.repo, job.head_sha, "success", "Approved by manager", result.summary);
-    await postMessage(
+    const plainSummary = result.plainSummary ?? result.summary;
+    const approvalBody = `${plainSummary}\n\n${
+      config.autoMerge
+        ? `Will auto-merge once tests are green and all conversations are resolved (add the \`${config.holdLabel}\` label to the task issue to hold it for a manual merge).`
+        : "Awaiting human merge."
+    }`;
+    await postReview(
       octokit,
       job.repo,
       job.pr,
       { v: 1, type: "approval", from: config.managerName, to: task.agent, task: job.issue, pr: job.pr },
-      `✅ **Manager review: approved** (round ${round})\n\n${result.summary}\n\n${
-        config.autoMerge
-          ? `Will auto-merge once tests are green and all conversations are resolved (add the \`${config.holdLabel}\` label to the task issue to hold it for a manual merge).`
-          : "Awaiting human merge."
-      }`
+      approvalBody,
+      "APPROVE"
     );
     store.updateTask(job.repo, job.issue, {
       status: "approved",

@@ -68,6 +68,25 @@ export async function postMessage(
   });
 }
 
+/** Post a native GitHub PR review (APPROVE / REQUEST_CHANGES / COMMENT). */
+export async function postReview(
+  octokit: Octokit,
+  repo: string,
+  pr: number,
+  msg: AgentMessage,
+  humanText: string,
+  event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT"
+): Promise<void> {
+  const { owner, repo: name } = splitRepo(repo);
+  await octokit.rest.pulls.createReview({
+    owner,
+    repo: name,
+    pull_number: pr,
+    event,
+    body: serializeMessage(msg, humanText),
+  });
+}
+
 export async function createCheck(
   octokit: Octokit,
   repo: string,
