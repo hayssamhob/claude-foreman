@@ -33,7 +33,7 @@ def add_overlay_bar(img, y_start, height, alpha=160):
     return Image.alpha_composite(img.convert("RGBA"), overlay)
 
 def main():
-    bg_path = "/Users/hayssamhoballah/CascadeProjects/claude-foreman/ring-fight.png"
+    bg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ring-fight.png")
     if not os.path.exists(bg_path):
         raise FileNotFoundError(f"Background image not found: {bg_path}")
 
@@ -98,7 +98,7 @@ def main():
     draw.text(((WIDTH - tw) // 2, 130), subtitle, fill="#cbd5e1", font=subtitle_font)
 
     final = img.convert("RGB")
-    out_path = "/Users/hayssamhoballah/CascadeProjects/claude-foreman/social-preview.png"
+    out_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "social-preview.png")
     final.save(out_path, "PNG", optimize=True, compress_level=9)
     size = os.path.getsize(out_path)
     if size > 1_000_000:

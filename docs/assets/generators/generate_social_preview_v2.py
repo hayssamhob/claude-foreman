@@ -65,7 +65,7 @@ def draw_glove(draw, cx, cy, scale=1.0, left=True):
 
 def main():
     # --- Start from ring-fight.png ---
-    bg_path = "/Users/hayssamhoballah/CascadeProjects/claude-foreman/ring-fight.png"
+    bg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ring-fight.png")
     if not os.path.exists(bg_path):
         raise FileNotFoundError(f"Background image not found: {bg_path}")
 
@@ -206,7 +206,7 @@ def main():
 
     # Convert back to RGB for PNG save
     final = img.convert("RGB")
-    out_path = "/Users/hayssamhoballah/CascadeProjects/claude-foreman/social-preview.png"
+    out_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "social-preview.png")
     final.save(out_path, "PNG")
     print(f"Saved to {out_path}")
 

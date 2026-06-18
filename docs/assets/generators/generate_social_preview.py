@@ -75,7 +75,7 @@ def draw_spotlight(draw, cx, cy, radius, color):
 
 def main():
     # --- Load and darken ring-fight.png as background ---
-    bg_path = "/Users/hayssamhoballah/CascadeProjects/claude-foreman/ring-fight.png"
+    bg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ring-fight.png")
     if os.path.exists(bg_path):
         bg = Image.open(bg_path).convert("RGB")
         bg = bg.resize((WIDTH, HEIGHT), Image.LANCZOS)
@@ -212,7 +212,7 @@ def main():
     draw.line([(0, 8), (WIDTH, 8)], fill=ACCENT, width=2)
     draw.line([(0, HEIGHT - 8), (WIDTH, HEIGHT - 8)], fill=ACCENT, width=2)
 
-    out_path = "/Users/hayssamhoballah/CascadeProjects/claude-foreman/social-preview.png"
+    out_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "social-preview.png")
     img.save(out_path, "PNG")
     print(f"Saved to {out_path}")
 
