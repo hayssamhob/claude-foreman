@@ -10,6 +10,7 @@ export interface CostSnapshot {
 export class CostLedger {
   private tokens = 0;
   private usdCents = 0;
+  private queueDepth = 0;
   private tripped: string | null = null;
 
   record(tokens: number, usdCents: number): void {
@@ -19,7 +20,7 @@ export class CostLedger {
   }
 
   snapshot(): CostSnapshot {
-    return { tokens: this.tokens, usdCents: this.usdCents, queueDepth: 0 };
+    return { tokens: this.tokens, usdCents: this.usdCents, queueDepth: this.queueDepth };
   }
 
   isTripped(): boolean {
@@ -37,6 +38,7 @@ export class CostLedger {
   }
 
   check(queueDepth: number, log: (m: string) => void): string | null {
+    this.queueDepth = queueDepth;
     if (this.tripped) return this.tripped;
 
     let reason: string | null = null;
