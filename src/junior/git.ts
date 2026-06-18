@@ -71,9 +71,9 @@ export async function commitAll(dir: string, message: string): Promise<string | 
   await git(
     [
       "-c",
-      "user.name=claude (agent-manager junior)",
+      "user.name=claude (foreman fighter)",
       "-c",
-      "user.email=agent-manager-junior@users.noreply.github.com",
+      "user.email=foreman-fighter@users.noreply.github.com",
       "commit",
       "-m",
       message,
