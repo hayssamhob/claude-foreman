@@ -2,7 +2,7 @@
 
 Welcome! We're building **Claude Foreman** — an open-source, GitHub-native autonomous coding orchestrator where *Claude thinks, free models type, and Foreman makes sure it's done right*. Your contributions help build a robust, **governed loop** for AI-assisted coding.
 
-New to the cast? The **Coach** is a senior model that plans and reviews (it never writes code); the **Fighters** are free/cheap models that write the code; the **Judge** ranks candidates in best-of-N fusion; and the **Referee** is deterministic code that gates every merge on tests + acceptance criteria + budget. The whole design lives in **[SPEC.md](https://github.com/hayssamhob/claude-foreman/blob/main/SPEC.md)**.
+New to the cast? The **Coach** is a senior model that plans and reviews (it never writes code); the **Fighters** are free/cheap models that write the code; the **Judge** ranks candidates in best-of-N fusion; and the **Referee** is deterministic code that gates every merge on tests + acceptance criteria + budget. The whole design lives in **[SPEC.md](SPEC.md)**.
 
 ## Ways to contribute
 
@@ -14,7 +14,7 @@ New to the cast? The **Coach** is a senior model that plans and reviews (it neve
 
 ## Milestones & the blueprint
 
-Work is organized as **epics (M0–M5)**, each tracked as GitHub issues with acceptance criteria. See **[SPEC.md](https://github.com/hayssamhob/claude-foreman/blob/main/SPEC.md)** for the full design blueprint and **[the milestones](https://github.com/hayssamhob/claude-foreman/milestones)** for what's in flight.
+Work is organized as **epics (M0–M5)**, each tracked as GitHub issues with acceptance criteria. See **[SPEC.md](SPEC.md)** for the full design blueprint and **[the milestones](https://github.com/hayssamhob/claude-foreman/milestones)** for what's in flight.
 
 ## Development setup
 
