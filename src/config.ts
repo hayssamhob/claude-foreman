@@ -11,6 +11,7 @@ export const config = {
     .split(",")
     .map((a) => a.trim().toLowerCase())
     .filter(Boolean),
+  installationId: process.env.INSTALLATION_ID ? parseInt(process.env.INSTALLATION_ID, 10) : undefined,
   leaseTtlMinutes: int("LEASE_TTL_MINUTES", 120),
   /**
    * Soft "going dark" threshold per agent: minutes of silence (no progress

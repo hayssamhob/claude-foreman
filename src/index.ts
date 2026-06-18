@@ -50,6 +50,14 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
   let repoCache: { at: number; repos: RepoOption[] } = { at: 0, repos: [] };
   async function installedRepos(): Promise<RepoOption[]> {
     if (Date.now() - repoCache.at < 5 * 60_000) return repoCache.repos;
+    // Fast-path: skip listing all installations when a single ID is configured.
+    if (config.installationId) {
+      const octokit = await probot.auth(config.installationId);
+      const { data } = await octokit.rest.apps.listReposAccessibleToInstallation({ per_page: 100 });
+      const repos = data.repositories.map((r) => ({ fullName: r.full_name, installationId: config.installationId! }));
+      repoCache = { at: Date.now(), repos };
+      return repos;
+    }
     const appAuth = await probot.auth();
     const { data: installations } = await appAuth.rest.apps.listInstallations({ per_page: 100 });
     const repos: RepoOption[] = [];
