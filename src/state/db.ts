@@ -43,7 +43,7 @@ export interface RevisionPointRow {
 
 export interface AgentStatusRow {
   agent: string;
-  state: "ok" | "rate_limited";
+  state: "ok" | "rate_limited" | "halted";
   reason: string | null;
   reset_at: number | null; // epoch ms the limit is expected to clear
   updated_at: number;
@@ -54,6 +54,18 @@ export interface HandoffNoteRow {
   id: number;
   note: string;
   author: string | null;
+  created_at: number;
+}
+
+export interface CostLedgerRow {
+  id: number;
+  repo: string | null;
+  issue: number | null;
+  agent: string | null;
+  job_type: string | null;
+  usd: number;
+  tokens_in: number;
+  tokens_out: number;
   created_at: number;
 }
 
@@ -149,6 +161,20 @@ export class Store {
         author TEXT,
         created_at INTEGER NOT NULL
       );
+    `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS cost_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        repo TEXT,
+        issue INTEGER,
+        agent TEXT,
+        job_type TEXT,
+        usd REAL NOT NULL DEFAULT 0,
+        tokens_in INTEGER NOT NULL DEFAULT 0,
+        tokens_out INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_cost_ledger_created ON cost_ledger(created_at);
     `);
     // Migrations: columns added after v0.1. Check existence instead of a
     // catch-all (which would also swallow SQLITE_BUSY / IOERR / CORRUPT).
@@ -331,7 +357,7 @@ export class Store {
   }
 
   /** Mark an agent rate-limited (or clear it). reset_at = when it should recover. */
-  setAgentStatus(agent: string, state: "ok" | "rate_limited", reason: string | null, resetAt: number | null): void {
+  setAgentStatus(agent: string, state: "ok" | "rate_limited" | "halted", reason: string | null, resetAt: number | null): void {
     this.db
       .prepare(
         `INSERT INTO agent_status (agent, state, reason, reset_at, updated_at)
@@ -394,6 +420,31 @@ export class Store {
     return this.db
       .prepare(`SELECT * FROM handoff_notes ORDER BY id DESC LIMIT 1`)
       .get() as HandoffNoteRow | undefined;
+  }
+
+  recordSpend(repo: string | null, issue: number | null, agent: string | null, jobType: string | null, usd: number, tokensIn: number, tokensOut: number): void {
+    if (usd === 0 && tokensIn === 0 && tokensOut === 0) return;
+    this.db
+      .prepare(
+        `INSERT INTO cost_ledger (repo, issue, agent, job_type, usd, tokens_in, tokens_out, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(repo, issue, agent, jobType, usd, tokensIn, tokensOut, Date.now());
+  }
+
+  getLedgerTotals(sinceEpoch: number = 0): { usd: number; tokens: number } {
+    const row = this.db
+      .prepare(
+        `SELECT ifnull(sum(usd), 0) as usd, ifnull(sum(tokens_in + tokens_out), 0) as tokens 
+         FROM cost_ledger WHERE created_at >= ?`
+      )
+      .get(sinceEpoch) as { usd: number; tokens: number };
+    return row;
+  }
+
+  queueDepth(): number {
+    const row = this.db.prepare(`SELECT count(*) as count FROM tasks WHERE status = 'queued'`).get() as { count: number };
+    return row.count;
   }
 
   close(): void {

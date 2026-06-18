@@ -8,7 +8,7 @@ import { parseRateLimit, RateLimitedError } from "../ratelimit.js";
  * `--output-format json` wraps the answer in an envelope `{ result: "..." }`;
  * we unwrap that, strip code fences, and parse.
  */
-export async function runManager<T>(prompt: string): Promise<T> {
+export async function runManager<T>(prompt: string, onMetrics?: (usd: number, inT: number, outT: number) => void): Promise<T> {
   if (config.managerDisabled) {
     throw new ManagerUnavailableError("MANAGER_DISABLED=1");
   }
@@ -40,7 +40,7 @@ export async function runManager<T>(prompt: string): Promise<T> {
     child.stdin.end();
   });
   try {
-    return extractJson<T>(stdout);
+    return extractJson<T>(stdout, onMetrics);
   } catch (e) {
     throw new Error(
       `manager output not parseable as JSON (${e}); len=${stdout.length}; tail: ${stdout.slice(-300)}`
@@ -50,15 +50,23 @@ export async function runManager<T>(prompt: string): Promise<T> {
 
 export class ManagerUnavailableError extends Error {}
 
-export function extractJson<T>(raw: string): T {
+export function extractJson<T>(raw: string, onMetrics?: (usd: number, inT: number, outT: number) => void): T {
   let text = raw.trim();
   // Unwrap the Claude Code CLI JSON envelope if present
   try {
     const envelope = JSON.parse(text);
-    if (envelope && typeof envelope === "object" && typeof envelope.result === "string") {
-      text = envelope.result.trim();
-    } else if (envelope && typeof envelope === "object") {
-      return envelope as T; // bare JSON answer
+    if (envelope && typeof envelope === "object") {
+      if (onMetrics) {
+        const usd = typeof envelope.cost === "number" ? envelope.cost : (typeof envelope.costUsd === "number" ? envelope.costUsd : 0);
+        const inT = typeof envelope.tokensIn === "number" ? envelope.tokensIn : 0;
+        const outT = typeof envelope.tokensOut === "number" ? envelope.tokensOut : 0;
+        onMetrics(usd, inT, outT);
+      }
+      if (typeof envelope.result === "string") {
+        text = envelope.result.trim();
+      } else {
+        return envelope as T; // bare JSON answer
+      }
     }
   } catch {
     /* not an envelope; fall through */

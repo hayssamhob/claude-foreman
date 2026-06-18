@@ -84,3 +84,63 @@ export function providerLabel(agent: string): string {
   if (agent === config.managerName || agent === config.juniorAgent) return "Claude";
   return agent.charAt(0).toUpperCase() + agent.slice(1);
 }
+
+/**
+ * Checks if any global ceiling (USD, tokens, queue depth) has been hit.
+ * If so, halts the relevant agents and notifies the owner.
+ * Returns true if the fleet should pause.
+ */
+export function checkCeilings(store: Store, log: (m: string) => void): boolean {
+  let halted = false;
+
+  // Queue ceiling
+  if (config.maxQueue !== undefined) {
+    const queueDepth = store.queueDepth();
+    if (queueDepth >= config.maxQueue) {
+      haltAgents(store, log, `Queue ceiling hit (${queueDepth} >= ${config.maxQueue})`);
+      halted = true;
+    }
+  }
+
+  // Cost and Token ceilings
+  if (!halted && (config.maxUsd !== undefined || config.maxTokens !== undefined || config.maxTokens5h !== undefined)) {
+    const { usd, tokens } = store.getLedgerTotals(0);
+
+    if (config.maxUsd !== undefined && usd >= config.maxUsd) {
+      haltAgents(store, log, `USD ceiling hit ($${usd.toFixed(2)} >= $${config.maxUsd.toFixed(2)})`);
+      halted = true;
+    } else if (config.maxTokens !== undefined && tokens >= config.maxTokens) {
+      haltAgents(store, log, `Token ceiling hit (${tokens} >= ${config.maxTokens})`);
+      halted = true;
+    } else if (config.maxTokens5h !== undefined) {
+      const fiveHoursAgo = Date.now() - 5 * 60 * 60 * 1000;
+      const { tokens: tokens5h } = store.getLedgerTotals(fiveHoursAgo);
+      if (tokens5h >= config.maxTokens5h) {
+        haltAgents(store, log, `5-hour token ceiling hit (${tokens5h} >= ${config.maxTokens5h})`);
+        halted = true;
+      }
+    }
+  }
+
+  return halted;
+}
+
+function haltAgents(store: Store, log: (m: string) => void, reason: string): void {
+  const agents = claudeAccountAgents();
+  const newlyHalted: string[] = [];
+
+  for (const agent of agents) {
+    if (store.agentStatus(agent).state !== "halted") newlyHalted.push(agent);
+    store.setAgentStatus(agent, "halted", reason, null);
+    log(`halted: ${agent} (${reason})`);
+  }
+
+  if (newlyHalted.length) {
+    const display = [...new Set(newlyHalted.map(providerLabel))];
+    void notify(
+      `${display.join(" & ")} halted 🛑`,
+      `${reason}. The fleet will not process jobs until the limits are cleared.`,
+      { priority: "urgent", tags: ["rotating_light"] }
+    );
+  }
+}

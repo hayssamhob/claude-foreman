@@ -66,6 +66,7 @@ export const config = {
   ntfyServer: process.env.NTFY_SERVER ?? "https://ntfy.sh",
   maxUsd: (() => { const n = parseFloat(process.env.MAX_USD ?? ""); return Number.isFinite(n) ? n : undefined; })(),
   maxTokens: (() => { const n = parseInt(process.env.MAX_TOKENS ?? "", 10); return Number.isFinite(n) ? n : undefined; })(),
+  maxTokens5h: (() => { const n = parseInt(process.env.MAX_TOKENS_5H ?? "", 10); return Number.isFinite(n) ? n : undefined; })(),
   maxQueue: (() => { const n = parseInt(process.env.MAX_QUEUE ?? "", 10); return Number.isFinite(n) ? n : undefined; })(),
   /**
    * The in-process junior: a headless Claude Code session that claims tasks

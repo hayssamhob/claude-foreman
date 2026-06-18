@@ -3,7 +3,7 @@ import { config } from "../config.js";
 import { postMessage, setStatusLabel, splitRepo } from "../github.js";
 import type { AuthFn } from "../manager/worker.js";
 import { extractJson } from "../manager/runner.js";
-import { claudeAccountAgents, recordRateLimit, resetClock } from "../agentlimits.js";
+import { claudeAccountAgents, recordRateLimit, resetClock, checkCeilings } from "../agentlimits.js";
 import { parseRateLimit, RateLimitedError } from "../ratelimit.js";
 import { notify } from "../notify.js";
 import type { Octokit } from "../octokit.js";
@@ -37,13 +37,18 @@ export function startJunior(store: Store, auth: AuthFn, log: (m: string) => void
     if (busy) return;
     busy = true;
     try {
-      // The junior is Claude; while it's rate-limited, do nothing — its tasks
+      // The junior is Claude; while it's rate-limited or halted, do nothing — its tasks
       // stay where they are and resume after the limit clears.
-      if (store.isRateLimited(config.juniorAgent)) {
-        const s = store.agentStatus(config.juniorAgent);
-        log(`junior rate-limited (${s.reason}); paused until ${resetClock(s.reset_at)}`);
+      const s = store.agentStatus(config.juniorAgent);
+      if (s.state === "rate_limited" || s.state === "halted") {
+        log(`junior ${s.state} (${s.reason}); paused${s.reset_at ? ` until ${resetClock(s.reset_at)}` : " indefinitely"}`);
         return;
       }
+
+      if (checkCeilings(store, log)) {
+        return;
+      }
+
       const mine = store.listTasks().filter((t) => t.agent === config.juniorAgent);
 
       const revision = mine.find(
@@ -148,7 +153,8 @@ async function runWork(
         spec: issue.body ?? "",
         branch,
       }),
-      dir
+      dir,
+      (usd, inT, outT) => store.recordSpend(task.repo, task.issue, config.juniorAgent, "work", usd, inT, outT)
     );
 
     await commitAll(dir, `${issue.title} (task #${task.issue})`);
@@ -226,7 +232,8 @@ async function runRevision(
         points: points.map((p) => p.text),
         threads: threads.open,
       }),
-      dir
+      dir,
+      (usd, inT, outT) => store.recordSpend(task.repo, task.issue, config.juniorAgent, "revision", usd, inT, outT)
     );
 
     const commit = await commitAll(dir, `Address review round ${task.revision_round} (task #${task.issue})`);
@@ -323,7 +330,7 @@ async function fail(task: TaskRow, store: Store, octokit: Octokit, reason: strin
 }
 
 /** Run the junior CLI in the workspace; parse its JSON self-report (tolerantly). */
-async function runJuniorCmd(prompt: string, cwd: string): Promise<JuniorReport> {
+async function runJuniorCmd(prompt: string, cwd: string, onMetrics?: (usd: number, inT: number, outT: number) => void): Promise<JuniorReport> {
   const stdout = await new Promise<string>((resolve, reject) => {
     const child = spawn(config.juniorCmd, { shell: true, cwd, windowsHide: true });
     // Guard against EPIPE/EINVAL if the process dies before/while we write stdin.
@@ -358,7 +365,7 @@ async function runJuniorCmd(prompt: string, cwd: string): Promise<JuniorReport> 
     child.stdin.end();
   });
   try {
-    return extractJson<JuniorReport>(stdout);
+    return extractJson<JuniorReport>(stdout, onMetrics);
   } catch {
     // A session that worked but fumbled the report format is still useful —
     // the diff is the real deliverable.

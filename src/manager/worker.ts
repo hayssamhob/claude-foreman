@@ -4,7 +4,7 @@ import { concludeCheck, postMessage, setStatusLabel, splitRepo } from "../github
 import { agentLabel, LABEL_TASK, statusLabel, taskBranch } from "../protocol/labels.js";
 import { serializeMessage } from "../protocol/messages.js";
 import { notify } from "../notify.js";
-import { claudeAccountAgents, recordRateLimit, resetClock } from "../agentlimits.js";
+import { claudeAccountAgents, recordRateLimit, resetClock, checkCeilings } from "../agentlimits.js";
 import { RateLimitedError } from "../ratelimit.js";
 import type { JobRow, Store } from "../state/db.js";
 import { decomposePrompt, reviewPrompt } from "./prompts.js";
@@ -32,13 +32,18 @@ export function startWorker(store: Store, auth: AuthFn, log: (msg: string) => vo
     if (running) return;
     running = true;
     try {
-      // The manager is Claude; while it's rate-limited, leave every job pending
+      // The manager is Claude; while it's rate-limited or halted, leave every job pending
       // and back off — retrying would only burn against the same limit.
-      if (store.isRateLimited(config.managerName)) {
-        const s = store.agentStatus(config.managerName);
-        log(`manager rate-limited (${s.reason}); holding jobs until ${resetClock(s.reset_at)}`);
+      const s = store.agentStatus(config.managerName);
+      if (s.state === "rate_limited" || s.state === "halted") {
+        log(`manager ${s.state} (${s.reason}); holding jobs${s.reset_at ? ` until ${resetClock(s.reset_at)}` : " indefinitely"}`);
         return;
       }
+
+      if (checkCeilings(store, log)) {
+        return;
+      }
+
       for (let job = store.nextJob(); job; job = store.nextJob()) {
         try {
           const octokit = await auth(job.installation_id);
@@ -86,7 +91,8 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
       epicBody: epic.body ?? "",
       agents: config.agents,
       repo: job.repo,
-    })
+    }),
+    (usd, inT, outT) => store.recordSpend(job.repo, job.issue, config.managerName, "decompose", usd, inT, outT)
   );
   if (!Array.isArray(result.tasks) || result.tasks.length === 0) {
     throw new Error("manager returned no tasks");
@@ -168,7 +174,8 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
       diff,
       round,
       openPoints: openPoints.map((p) => p.text),
-    })
+    }),
+    (usd, inT, outT) => store.recordSpend(job.repo, job.issue, config.managerName, "review", usd, inT, outT)
   );
 
   // Update the per-point checklist the dashboard shows

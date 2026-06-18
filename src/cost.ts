@@ -34,6 +34,7 @@ export class CostLedger {
   reset(): void {
     this.tokens = 0;
     this.usdCents = 0;
+    this.queueDepth = 0;
     this.tripped = null;
   }
 
@@ -47,6 +48,8 @@ export class CostLedger {
       reason = "maxUsd";
     } else if (config.maxTokens !== undefined && this.tokens > config.maxTokens) {
       reason = "maxTokens";
+    } else if (config.maxTokens5h !== undefined && this.tokens > config.maxTokens5h) {
+      reason = "maxTokens5h";
     } else if (config.maxQueue !== undefined && queueDepth > config.maxQueue) {
       reason = "maxQueue";
     }
