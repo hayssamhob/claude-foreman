@@ -14,7 +14,7 @@ export async function assembleContextPacket(
   const { owner, repo: name } = splitRepo(repo);
   const [labelsRes, treeRes, gotchasRes] = await Promise.allSettled([
     octokit.rest.issues.listLabelsForRepo({ owner, repo: name, per_page: 100 }),
-    octokit.rest.git.getTree({ owner, repo: name, tree_sha: "HEAD", recursive: "0" }),
+    octokit.rest.git.getTree({ owner, repo: name, tree_sha: "HEAD" }),
     octokit.rest.repos.getContent({ owner, repo: name, path: "gotchas.md" }).catch(() => null),
   ]);
 
