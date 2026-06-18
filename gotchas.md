@@ -1,0 +1,48 @@
+# Gotchas — Foreman's free memory layer
+
+> **Why this file exists.** The Coach (a senior frontier model) costs tokens; GitHub
+> doesn't. So Foreman's project knowledge lives **on GitHub — written once, read free
+> forever** — not re-derived in a fresh senior prompt every run. This file is the seed of
+> the **"AI layer"** (the improvable rules/gotchas/recipes layer, see `SPEC.md` §6 / issue
+> M5-5): every Fighter dispatch reads it, and every mistake the loop makes is appended here
+> so the **next** Fighter doesn't repeat it. **Don't re-explain in a prompt what you can
+> write here once.**
+>
+> Companion sources of GitHub-resident truth a dispatch reads *for free*: the **issue body**
+> (the canonical brief + acceptance criteria), the **labels** (`gh label list`), **PR
+> descriptions/reviews**, and **`SPEC.md`**.
+
+---
+
+## G1 — Fighters invent project-specific facts
+
+**Symptom.** A free/cheap Fighter writes fluently but **invents** project-specific facts it
+was never given — label values, file paths, config keys, function signatures, conventions.
+The output looks authoritative and is wrong.
+
+**First seen.** [#64](https://github.com/hayssamhob/claude-foreman/pull/64) — Foreman's first
+dogfood. Briefed to write `CONTRIBUTING.md`, the Fighter (Qwen3, local) invented the labels
+`area:api` and `spine:probot`. Neither exists. The Coach review caught it; a naive
+dispatch-then-auto-commit would have shipped a guide documenting labels that don't exist.
+
+**Rule.**
+1. **Inject ground truth — don't make the Fighter guess.** Brief from GitHub-resident
+   sources (`gh label list`, the file tree, the issue body, this file) at dispatch — issue
+   **M1-14**. The fix is *upstream*, in how the task is prepared, not blame on the Fighter.
+2. **Verify, don't trust.** Run the deterministic claim-checker (issue **M1-15**) over
+   Fighter output *before* the Coach reviews: any referenced label / path / symbol / import
+   that doesn't exist gets flagged — **zero senior tokens**.
+3. **No execution oracle ⇒ never auto-merge.** Docs/prose/config have no test to catch a
+   hallucination, so they are augment-only and always escalate to the Coach — issue
+   **M2-4**.
+
+**The real label taxonomy** (so nobody re-invents it — this is the free-memory payload):
+
+- `epic:M0` … `epic:M5`
+- `type:` `feat` · `fix` · `refactor` · `docs` · `infra`
+- `area:` `cli` · `config` · `connectors` · `coach` · `daemon` · `dashboard` · `driver` · `evolution` · `fusion` · `github` · `loop` · `referee` · `security` · `skill`
+- `weight:` `flyweight` · `middleweight` · `heavyweight`
+- `spine:` `adopt` · `build` · `harden` · `extend` · `expose`
+- `good first issue`
+
+> Editing labels? Update this list in the same PR — it's the source a Fighter reads.
