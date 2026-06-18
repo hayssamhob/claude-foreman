@@ -20,7 +20,7 @@
 was never given — label values, file paths, config keys, function signatures, conventions.
 The output looks authoritative and is wrong.
 
-**First seen.** [#64](https://github.com/hayssamhob/claude-foreman/pull/64) — Foreman's first
+**First seen.** #64 — Foreman's first
 dogfood. Briefed to write `CONTRIBUTING.md`, the Fighter (Qwen3, local) invented the labels
 `area:api` and `spine:probot`. Neither exists. The Coach review caught it; a naive
 dispatch-then-auto-commit would have shipped a guide documenting labels that don't exist.
@@ -57,7 +57,7 @@ cursor-up / clear-line) get interleaved with the model's tokens. On replay they 
 mid-token, so the saved file is subtly corrupted — and the build then fails (e.g.
 `error TS1002: Unterminated string literal` once a line-wrapped string gets mangled).
 
-**First seen.** [#12](https://github.com/hayssamhob/claude-foreman/issues/12) (M0-10) —
+**First seen.** #12 (M0-10) —
 dispatching the `src/config.ts` roster rebrand to a local Ollama Fighter. The Fighter's
 *values* were essentially right, but the piped file wouldn't compile, and an ANSI-replay
 cleaner couldn't perfectly reconstruct a line-wrapped string literal.
