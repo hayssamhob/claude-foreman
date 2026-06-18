@@ -150,17 +150,17 @@ export class Store {
         created_at INTEGER NOT NULL
       );
     `);
-    // Migrations: columns added after v0.1
-    for (const ddl of [
-      `ALTER TABLE tasks ADD COLUMN title TEXT`,
-      `ALTER TABLE tasks ADD COLUMN plain_summary TEXT`,
-      `ALTER TABLE tasks ADD COLUMN stale_warned_at INTEGER`,
-    ]) {
-      try {
-        this.db.exec(ddl);
-      } catch {
-        /* column already exists */
-      }
+    // Migrations: columns added after v0.1. Check existence instead of a
+    // catch-all (which would also swallow SQLITE_BUSY / IOERR / CORRUPT).
+    const existingCols = new Set(
+      (this.db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[]).map((c) => c.name)
+    );
+    for (const [col, ddl] of [
+      ["title", `ALTER TABLE tasks ADD COLUMN title TEXT`],
+      ["plain_summary", `ALTER TABLE tasks ADD COLUMN plain_summary TEXT`],
+      ["stale_warned_at", `ALTER TABLE tasks ADD COLUMN stale_warned_at INTEGER`],
+    ] as const) {
+      if (!existingCols.has(col)) this.db.exec(ddl);
     }
   }
 
@@ -295,9 +295,9 @@ export class Store {
     // Skip if an identical pending job already exists (cron double-fire safety)
     const dup = this.db
       .prepare(
-        `SELECT id FROM jobs WHERE type = ? AND repo = ? AND issue = ? AND ifnull(pr, -1) = ifnull(?, -1) AND status = 'pending'`
+        `SELECT id FROM jobs WHERE type = ? AND repo = ? AND issue = ? AND ifnull(pr, -1) = ifnull(?, -1) AND ifnull(head_sha, '') = ifnull(?, '') AND status = 'pending'`
       )
-      .get(j.type, j.repo, j.issue, j.pr);
+      .get(j.type, j.repo, j.issue, j.pr, j.head_sha);
     if (dup) return (dup as { id: number }).id;
     const res = this.db
       .prepare(

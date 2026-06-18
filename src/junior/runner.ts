@@ -326,6 +326,8 @@ async function fail(task: TaskRow, store: Store, octokit: Octokit, reason: strin
 async function runJuniorCmd(prompt: string, cwd: string): Promise<JuniorReport> {
   const stdout = await new Promise<string>((resolve, reject) => {
     const child = spawn(config.juniorCmd, { shell: true, cwd, windowsHide: true });
+    // Guard against EPIPE/EINVAL if the process dies before/while we write stdin.
+    child.stdin.on("error", () => {});
     let out = "";
     let err = "";
     const timer = setTimeout(() => {

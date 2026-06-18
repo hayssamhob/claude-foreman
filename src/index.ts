@@ -173,7 +173,10 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
       if (req.method === "POST" && path === "/dashboard/handoff-note") {
         (async () => {
           let body = "";
-          for await (const chunk of req) body += chunk;
+          for await (const chunk of req) {
+            body += chunk;
+            if (body.length > 65536) { res.writeHead(413, { "content-type": "text/plain" }); res.end("Request Entity Too Large"); return; }
+          }
           const params = new URLSearchParams(body);
           const note = (params.get("note") ?? "").trim();
           const author = (params.get("author") ?? "").trim() || null;
@@ -214,7 +217,10 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
       if (req.method === "POST" && (path === "/dashboard/stop" || path === "/dashboard/relaunch")) {
         (async () => {
           let body = "";
-          for await (const chunk of req) body += chunk;
+          for await (const chunk of req) {
+            body += chunk;
+            if (body.length > 65536) { res.writeHead(413, { "content-type": "text/plain" }); res.end("Request Entity Too Large"); return; }
+          }
           const params = new URLSearchParams(body);
           const repo = params.get("repo") ?? "";
           const issue = parseInt(params.get("issue") ?? "", 10);
@@ -266,7 +272,10 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
       if (req.method === "POST" && path === "/dashboard/merge") {
         (async () => {
           let body = "";
-          for await (const chunk of req) body += chunk;
+          for await (const chunk of req) {
+            body += chunk;
+            if (body.length > 65536) { res.writeHead(413, { "content-type": "text/plain" }); res.end("Request Entity Too Large"); return; }
+          }
           const params = new URLSearchParams(body);
           const repo = params.get("repo") ?? "";
           const issue = parseInt(params.get("issue") ?? "", 10);
@@ -306,7 +315,10 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
       if (req.method === "POST" && path === "/dashboard/new-work") {
         (async () => {
           let body = "";
-          for await (const chunk of req) body += chunk;
+          for await (const chunk of req) {
+            body += chunk;
+            if (body.length > 65536) { res.writeHead(413, { "content-type": "text/plain" }); res.end("Request Entity Too Large"); return; }
+          }
           const params = new URLSearchParams(body);
           const repo = params.get("repo") ?? "";
           const description = (params.get("description") ?? "").trim();
@@ -347,10 +359,17 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
   const tick = startWorker(store, auth, log);
   const juniorTick = startJunior(store, auth, log);
   const workerTimer = setInterval(() => void tick(), WORKER_INTERVAL_MS);
-  const sweepTimer = setInterval(() => {
-    void sweepLeases(store, auth, log);
-    sweepSilentAgents(store, log);
-    sweepRateLimitRecoveries(store, log);
+  let sweeping = false;
+  const sweepTimer = setInterval(async () => {
+    if (sweeping) return; // skip if the previous (async, network-bound) sweep is still running
+    sweeping = true;
+    try {
+      await sweepLeases(store, auth, log);
+      sweepSilentAgents(store, log);
+      sweepRateLimitRecoveries(store, log);
+    } finally {
+      sweeping = false;
+    }
   }, SWEEP_INTERVAL_MS);
   const mergeTimer = setInterval(() => void sweepAutoMerge(store, auth, log), AUTOMERGE_INTERVAL_MS);
   const juniorTimer = setInterval(() => void juniorTick(), JUNIOR_INTERVAL_MS);

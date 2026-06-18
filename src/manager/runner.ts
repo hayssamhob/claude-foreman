@@ -14,6 +14,8 @@ export async function runManager<T>(prompt: string): Promise<T> {
   }
   const stdout = await new Promise<string>((resolve, reject) => {
     const child = spawn(config.managerCmd, { shell: true, windowsHide: true });
+    // Guard against EPIPE/EINVAL if the process dies before/while we write stdin.
+    child.stdin.on("error", () => {});
     let out = "";
     let err = "";
     child.stdout.on("data", (d) => (out += d));
