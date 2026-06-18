@@ -1,0 +1,33 @@
+{
+  "name": "claude-foreman",
+  "version": "0.1.0",
+  "description": "Foreman \u2014 a GitHub-native autonomous coding supervisor: the Coach plans and reviews, free Fighters write the code, the Referee gates every merge.",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "start": "probot run ./dist/src/index.js",
+    "dev": "tsx node_modules/probot/bin/probot.js run ./src/index.ts",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2",
+    "probot": "^14.3.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.9.3",
+    "smee-client": "^5.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.10.0": true,
+    "esbuild@0.28.1": true
+  }
+}

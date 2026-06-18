@@ -1,0 +1,23 @@
+# GitHub App manifest — Probot's setup wizard reads this when registering the app.
+default_events:
+  - issues
+  - issue_comment
+  - pull_request
+# NOTE: if the app was registered before contents became `write`, update it
+# manually: https://github.com/settings/apps -> agent-manager -> Permissions &
+# events -> Contents: Read and write, then approve the new permissions on the
+# installation. Required for auto-merge and for the in-process Claude junior
+# to push branches.
+default_permissions:
+  issues: write
+  pull_requests: write
+  checks: write
+  contents: write
+  metadata: read
+name: agent-manager
+url: https://github.com/hayssamhob
+description: >-
+  Claude Fable manages junior AI coding agents (Antigravity, Windsurf):
+  decomposes epics into task issues, juniors claim via comment mailbox,
+  manager reviews every agent PR behind a required check.
+public: false
