@@ -21,7 +21,7 @@ EPIC BODY:
 ${args.epicBody}
 
 Respond with ONLY a JSON object, no prose, in this exact shape:
-{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec>"}]}`;
+{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec>", "doneContract": ["<machine-checkable AC>", ...]}]}`;
 }
 
 export function reviewPrompt(args: {
