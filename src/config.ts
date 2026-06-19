@@ -30,7 +30,7 @@ const managerEffort = (() => { const n = parseInt(process.env.MANAGER_EFFORT ?? 
 const juniorEffort = (() => { const n = parseInt(process.env.JUNIOR_EFFORT ?? "", 10); return Number.isFinite(n) ? n : undefined; })();
 
 export const config = {
-  agents: (process.env.AGENTS ?? "ollama,windsurf-kimi,claude")
+  agents: (process.env.AGENTS ?? "ollama,windsurf-kimi,claude-jr")
     .split(",")
     .map((a) => a.trim().toLowerCase())
     .filter(Boolean),
@@ -48,7 +48,7 @@ export const config = {
    */
   staleWarnMinutes: int("STALE_WARN_MINUTES", 30),
   agentStaleWarn: Object.fromEntries(
-    (process.env.AGENT_STALE_WARN ?? "ollama:0,windsurf-kimi:15,claude:0")
+    (process.env.AGENT_STALE_WARN ?? "ollama:0,windsurf-kimi:15,claude-jr:0")
       .split(",")
       .map((p) => p.split(":"))
       .filter((p) => p.length === 2)
@@ -62,7 +62,7 @@ export const config = {
    * Format: "windsurf-kimi:1,ollama:3"; unlisted agents default to 2.
    */
   agentLimits: Object.fromEntries(
-    (process.env.AGENT_LIMITS ?? "ollama:3,windsurf-kimi:1,claude:1")
+    (process.env.AGENT_LIMITS ?? "ollama:3,windsurf-kimi:1,claude-jr:1")
       .split(",")
       .map((p) => p.split(":"))
       .filter((p) => p.length === 2)
@@ -76,8 +76,8 @@ export const config = {
   dbPath: process.env.DB_PATH ?? "./data/foreman.db",
   /** This app's own repo URL, surfaced in the account-rotation handoff bundle. */
   projectRepoUrl: process.env.PROJECT_REPO_URL ?? "",
-  checkName: "Manager Review",
-  managerName: "manager",
+  checkName: "Coach Review",
+  managerName: "coach",
   /**
    * When on (default), approved PRs merge automatically once every gate is
    * green: CI passing, no unresolved review conversations, no `hold` label.
@@ -97,7 +97,7 @@ export const config = {
    * routed to `agent:claude`, codes them in a local workspace clone, and
    * opens PRs — same protocol as the external IDE agents.
    */
-  juniorAgent: (process.env.JUNIOR_AGENT ?? "claude").toLowerCase(),
+  juniorAgent: (process.env.JUNIOR_AGENT ?? "claude-jr").toLowerCase(),
   juniorEnabled: process.env.JUNIOR_ENABLED !== "0",
   juniorCmd: applyEffort(process.env.JUNIOR_CMD ?? "claude -p --output-format json --dangerously-skip-permissions", juniorEffort),
   juniorEffort,

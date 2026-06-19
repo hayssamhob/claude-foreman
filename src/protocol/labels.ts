@@ -55,8 +55,8 @@ export interface LabelDef {
 /** Every label the protocol needs in a repo — shared by the onboarding handler and the ensure-labels script. */
 export function labelDefinitions(agents: string[], holdLabel: string): LabelDef[] {
   return [
-    { name: LABEL_TASK, color: "1d76db", description: "Dispatchable task for an AI agent" },
-    { name: LABEL_EPIC, color: "5319e7", description: "Epic — manager will decompose into tasks" },
+    { name: LABEL_TASK, color: "1d76db", description: "Dispatchable task for an AI fighter" },
+    { name: LABEL_EPIC, color: "5319e7", description: "Epic — coach will decompose into tasks" },
     { name: holdLabel, color: "cf222e", description: "Do not auto-merge — the owner will merge manually" },
     ...agents.map((a) => ({ name: agentLabel(a), color: "0e8a16", description: `Routed to agent: ${a}` })),
     ...ALL_STATUS.map((s) => ({ name: statusLabel(s), color: "fbca04", description: `Task status: ${s}` })),

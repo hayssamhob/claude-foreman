@@ -35,9 +35,9 @@ describe("rate-limit recovery", () => {
     expect(store.agentStatus("devin").state).toBe("rate_limited");
   });
 
-  it("collapses the shared Claude account (manager + junior) under one label", () => {
-    expect(providerLabel("manager")).toBe("Claude");
-    expect(providerLabel("claude")).toBe("Claude");
+  it("collapses the shared Claude account (coach + junior) under one label", () => {
+    expect(providerLabel("coach")).toBe("Claude");
+    expect(providerLabel("claude-jr")).toBe("Claude");
     expect(providerLabel("windsurf")).toBe("Windsurf");
     expect(providerLabel("devin")).toBe("Devin");
   });

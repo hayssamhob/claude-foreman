@@ -37,7 +37,7 @@ describe("silent-agent early warning", () => {
 
   it("never warns for agents with monitoring disabled (threshold 0)", () => {
     const store = new Store(":memory:");
-    silentSince(store, "claude", 3, 90); // claude threshold = 0 (we monitor it directly)
+    silentSince(store, "claude-jr", 3, 90); // claude-jr threshold = 0 (we monitor it directly)
     sweepSilentAgents(store, NOOP, NOW);
     expect(store.getTask("o/r", 3)!.stale_warned_at).toBeNull();
   });
