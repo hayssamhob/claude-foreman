@@ -1,15 +1,18 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function parseFrontmatter(content: string): { data: Record<string, string>; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { data: {}, body: content };
 
   const fmText = match[1];
   const body = match[2];
   const data: Record<string, string> = {};
 
-  for (const line of fmText.split("\n")) {
+  for (const line of fmText.split(/\r?\n/)) {
     const colonIdx = line.indexOf(":");
     if (colonIdx === -1) continue;
     const key = line.slice(0, colonIdx).trim();
@@ -26,9 +29,9 @@ function parseFrontmatter(content: string): { data: Record<string, string>; body
 }
 
 function main() {
-  const recipesDir = path.join(process.cwd(), "recipes");
+  const recipesDir = path.join(__dirname, "../recipes");
   if (!fs.existsSync(recipesDir)) {
-    console.error("recipes/ directory not found");
+    console.error("recipes/ directory not found at", recipesDir);
     process.exit(1);
   }
 
