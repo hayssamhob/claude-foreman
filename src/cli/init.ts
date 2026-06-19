@@ -95,9 +95,10 @@ export function initLoop(opts: InitOptions = {}): InitResult {
 }
 
 /** CLI entry point — called when the user runs `foreman init`. */
-export function runInitCli(args: string[]): void {
+export async function runInitCli(args: string[]): Promise<void> {
   const dirIdx = args.indexOf("--dir");
   const dir = dirIdx >= 0 && dirIdx + 1 < args.length ? args[dirIdx + 1] : undefined;
+  const targetDir = resolve(dir ?? ".");
 
   const result = initLoop({ dir });
 
@@ -113,8 +114,32 @@ export function runInitCli(args: string[]): void {
     console.log(`⏭️  ${result.logPath} already exists — skipped`);
   }
 
+  // Probe Ollama to default the junior fighter
+  let ollamaRunning = false;
+  try {
+    const res = await fetch("http://localhost:11434/", { method: "HEAD" });
+    ollamaRunning = res.ok;
+  } catch {
+    // Network error means Ollama is not running
+  }
+
+  const envPath = join(targetDir, ".env");
+  if (ollamaRunning) {
+    console.log(`\n🦙 Detected local Ollama running on port 11434.`);
+    if (!existsSync(envPath)) {
+      writeFileSync(envPath, `JUNIOR_AGENT=ollama\nAGENTS=ollama\n`, "utf8");
+      console.log(`✅ Created .env configuring Ollama as the default junior fighter.`);
+    } else {
+      console.log(`⏭️  .env already exists — skipped Ollama default configuration.`);
+    }
+  }
+
   console.log("\nForeman is initialized. Next steps:");
   console.log("  1. Edit loop-budget.md to set your cost ceilings");
-  console.log("  2. Set MANAGER_CMD and JUNIOR_CMD env vars (or use defaults)");
+  if (!ollamaRunning && !existsSync(envPath)) {
+    console.log("  2. Set MANAGER_CMD and JUNIOR_CMD env vars (or use defaults)");
+  } else {
+    console.log("  2. Review your .env for agent configuration (MANAGER_CMD, JUNIOR_AGENT)");
+  }
   console.log("  3. Label an issue with 'epic' to trigger decomposition");
 }

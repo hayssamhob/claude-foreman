@@ -39,7 +39,7 @@ if (command === "init") {
     }
   } else {
     // foreman init (without --pattern)
-    runInitCli(rest);
+    await runInitCli(rest);
   }
 } else if (command === "patterns") {
   const recipesDir = join(process.cwd(), "recipes");
