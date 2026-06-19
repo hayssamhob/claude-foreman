@@ -51,7 +51,7 @@ export const cursorAdapter: FighterAdapter = {
 
     // Step 3 — run Cursor agent (CLI is pre-installed by the workflow step).
     const prompt = buildCursorPrompt(ctx);
-    execFileSync("agent", ["-p", prompt, "--output-format", "text"], {
+    execFileSync("cursor", ["-p", prompt, "--output-format", "text"], {
       stdio: ["ignore", "inherit", "inherit"],
       env: { ...process.env, CURSOR_API_KEY: apiKey },
     });

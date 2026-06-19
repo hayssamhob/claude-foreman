@@ -122,14 +122,14 @@ describe("buildDevinLocalPrompt", () => {
 describe("devinLocalAdapter", () => {
   it("has name devin-local", () => expect(devinLocalAdapter.name).toBe("devin-local"));
   it("returns dry-run when devin binary absent", async () => {
-    // Vitest cannot easily mock execFileSync, so test via a known-absent binary name.
-    // The adapter checks `devin --version`; in CI `devin` is not installed → dry-run.
-    const r = await devinLocalAdapter.wake({
-      repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "x", branch: "b",
-    });
-    // In CI (no devin binary): status must be "dry-run".
-    // In a local env with devin installed: status will be "woken" — acceptable.
-    expect(["dry-run", "woken"]).toContain(r.status);
+    const savedPath = process.env.PATH;
+    process.env.PATH = "/dev/null"; // garantit que execFileSync("devin") échoue
+    try {
+      const r = await devinLocalAdapter.wake({ repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "x", branch: "b" });
+      expect(r.status).toBe("dry-run");
+    } finally {
+      process.env.PATH = savedPath;
+    }
   });
 });
 
