@@ -124,12 +124,15 @@ describe("devinLocalAdapter", () => {
   it("has name devin-local", () => expect(devinLocalAdapter.name).toBe("devin-local"));
   it("returns dry-run when devin binary absent", async () => {
     const savedPath = process.env.PATH;
+    const savedBin = process.env.DEVIN_BIN;
     process.env.PATH = "/dev/null"; // garantit que execFileSync("devin") échoue
+    process.env.DEVIN_BIN = "/does/not/exist/devin";
     try {
       const r = await devinLocalAdapter.wake({ repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "x", branch: "b" });
       expect(r.status).toBe("dry-run");
     } finally {
       process.env.PATH = savedPath;
+      process.env.DEVIN_BIN = savedBin;
     }
   });
 });
