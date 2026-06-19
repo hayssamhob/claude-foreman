@@ -273,12 +273,13 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
     return;
   }
 
-  await postMessage(
+  await postReview(
     octokit,
     job.repo,
     job.pr,
     { v: 1, type: "revision-request", from: config.managerName, to: task.agent, task: job.issue, pr: job.pr, round },
-    `🔁 **Manager review: changes requested** (round ${round}/${config.maxRevisionRounds})\n\n${result.summary}\n\n${points}\n\n@${task.agent}: push fixes to the same branch; review re-runs automatically.`
+    `🔁 **Manager review: changes requested** (round ${round}/${config.maxRevisionRounds})\n\n${result.summary}\n\n${points}\n\n@${task.agent}: push fixes to the same branch; review re-runs automatically.`,
+    "REQUEST_CHANGES"
   );
   store.updateTask(job.repo, job.issue, {
     status: "changes_requested",
