@@ -1,0 +1,143 @@
+/**
+ * Ollama adapter (M6-3) — the free-tier wake-up.
+ *
+ * `agent:ollama` on an issue -> call the local Ollama HTTP API, write the files it
+ * returns, commit, push, and open a PR. Runs on a self-hosted runner with Ollama
+ * installed (set the `DISPATCH_RUNNER=self-hosted` repo var). The PR it opens is NOT
+ * auto-merged — the Referee oracle (build + test) gates it.
+ *
+ * Env:
+ *   OLLAMA_URL    generate endpoint (default http://localhost:11434/api/generate)
+ *   OLLAMA_MODEL  model tag (default qwen3:30b-a3b)
+ *
+ * G2: HTTP API, stream:false, think:false for qwen3 — never `ollama run`.
+ */
+import { execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import type { FighterAdapter, WakeContext, WakeResult } from "./adapter.js";
+
+/** Hard-exclusion guardrail — the adapter never touches these scopes. */
+const EXCLUDED = /(auth|payment|secret|migration|delete|DROP|spend)/i;
+
+/** Pure: assemble the Ollama prompt from the grilled brief + a strict JSON output contract. */
+export function buildOllamaPrompt(ctx: WakeContext): string {
+  return `${ctx.brief}
+
+---
+Output ONLY valid JSON in this exact shape — no explanation, no markdown, no extra keys:
+{ "files": [{ "path": "relative/path/from/repo/root", "contents": "full file contents" }] }
+
+Rules:
+- paths must be relative (no leading "/" or "..").
+- Include the complete file contents — never a partial patch.`;
+}
+
+/** Returns the absolute path if it stays inside repoRoot, `null` if it escapes. */
+export function safePath(repoRoot: string, relativePath: string): string | null {
+  if (!relativePath || relativePath.startsWith("/") || relativePath.includes("..")) return null;
+  const abs = join(repoRoot, relativePath);
+  // Must be inside repoRoot
+  if (abs !== repoRoot && !abs.startsWith(repoRoot + "/")) return null;
+  return abs;
+}
+
+export const ollamaAdapter: FighterAdapter = {
+  name: "ollama",
+  async wake(ctx: WakeContext): Promise<WakeResult> {
+    // Env read at call time (not module load) so tests can point at a dead port.
+    const ollamaUrl = process.env.OLLAMA_URL ?? "http://localhost:11434/api/generate";
+    const ollamaModel = process.env.OLLAMA_MODEL ?? "qwen3:30b-a3b";
+
+    // 0. Hard-exclusion: never touch auth/payments/secrets/migrations/deletes/spend.
+    const excluded = EXCLUDED.exec(ctx.brief);
+    if (excluded) {
+      return { status: "skipped", detail: `brief contains excluded scope: ${excluded[0]}` };
+    }
+
+    const prompt = buildOllamaPrompt(ctx);
+
+    // 1. Dry-run probe — if Ollama is unreachable, do NOT throw.
+    try {
+      await fetch(ollamaUrl, { method: "HEAD" });
+    } catch {
+      return {
+        status: "dry-run",
+        detail: `Ollama unreachable at ${ollamaUrl} — would run against #${ctx.issueNumber}. Prompt preview: ${prompt.slice(0, 200)}…`,
+      };
+    }
+
+    // 3. Call Ollama (matches scripts/audit-tick.ts callModel shape).
+    const res = await fetch(ollamaUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: ollamaModel,
+        prompt,
+        stream: false,
+        think: false, // REQUIRED for qwen3 — omit and response comes back empty
+        format: "json",
+        options: { temperature: 0.2 },
+      }),
+    });
+    if (!res.ok) throw new Error(`Ollama ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const data = (await res.json()) as { response?: string };
+    const raw = data.response ?? "";
+
+    // 4. Parse files.
+    let files: Array<{ path: string; contents: string }>;
+    try {
+      const parsed = JSON.parse(raw) as { files?: unknown };
+      if (!Array.isArray(parsed.files)) throw new Error("no files array");
+      files = parsed.files as Array<{ path: string; contents: string }>;
+    } catch {
+      throw new Error(`Ollama returned unparseable output: ${raw.slice(0, 200)}`);
+    }
+
+    // 5. Write files (path-traversal guarded).
+    const root = process.cwd();
+    for (const { path: rel, contents } of files) {
+      const abs = safePath(root, rel);
+      if (!abs) {
+        console.warn(`[ollama] skipped unsafe path: ${rel}`);
+        continue;
+      }
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, contents, "utf8");
+    }
+
+    // 6. Git operations.
+    try {
+      execFileSync("git", ["checkout", "-b", ctx.branch], { stdio: "inherit" });
+    } catch {
+      execFileSync("git", ["checkout", ctx.branch], { stdio: "inherit" });
+    }
+    execFileSync("git", ["add", "-A"], { stdio: "inherit" });
+    execFileSync(
+      "git",
+      ["commit", "-m", `feat(#${ctx.issueNumber}): implement issue #${ctx.issueNumber}\n\n[ollama agent]`],
+      { stdio: "inherit" }
+    );
+    execFileSync("git", ["push", "--set-upstream", "origin", ctx.branch], { stdio: "inherit" });
+
+    // 7. Open PR.
+    const prUrl = execFileSync(
+      "gh",
+      ["pr", "create", "--title", `feat(#${ctx.issueNumber}): implement issue #${ctx.issueNumber}`, "--body", `Closes #${ctx.issueNumber}\n\nGenerated by Ollama agent (\`${ollamaModel}\`).`],
+      { encoding: "utf8" }
+    ).trim();
+
+    // 8. Done-signal.
+    const prMatch = /\/pull\/(\d+)/.exec(prUrl);
+    if (prMatch) {
+      execFileSync(
+        "gh",
+        ["pr", "comment", prMatch[1], "--body", `@hayssamhob ✅ #${ctx.issueNumber} done — Ollama agent completed the implementation.`],
+        { stdio: "inherit" }
+      );
+    }
+
+    // 9. Return.
+    return { status: "woken", detail: `PR opened: ${prUrl}` };
+  },
+};

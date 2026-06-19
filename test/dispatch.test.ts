@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseAgent, slugify, branchFor, noopAdapter } from "../src/dispatch/adapter.js";
 import { buildDevinPrompt, devinAdapter } from "../src/dispatch/devin.js";
+import { buildOllamaPrompt, safePath, ollamaAdapter } from "../src/dispatch/ollama.js";
 
 describe("parseAgent", () => {
   it("extracts the agent name", () => expect(parseAgent("agent:devin")).toBe("devin"));
@@ -43,6 +44,30 @@ describe("devinAdapter dry-run (no network without creds)", () => {
     expect(r.status).toBe("dry-run");
     if (k) process.env.DEVIN_API_KEY = k;
     if (o) process.env.DEVIN_ORG_ID = o;
+  });
+});
+
+describe("safePath", () => {
+  it("allows a valid relative path", () => expect(safePath("/repo", "src/foo.ts")).toBe("/repo/src/foo.ts"));
+  it("rejects absolute path", () => expect(safePath("/repo", "/etc/passwd")).toBeNull());
+  it("rejects traversal", () => expect(safePath("/repo", "../outside")).toBeNull());
+  it("rejects dot-dot in middle", () => expect(safePath("/repo", "src/../../../etc")).toBeNull());
+});
+
+describe("buildOllamaPrompt", () => {
+  const ctx = { repo: "o/r", issueNumber: 88, agent: "ollama", brief: "Do the thing.", branch: "feat/issue-88-x" };
+  it("embeds the brief", () => expect(buildOllamaPrompt(ctx)).toContain("Do the thing."));
+  it("requests JSON files output", () => expect(buildOllamaPrompt(ctx)).toContain('"files"'));
+});
+
+describe("ollamaAdapter dry-run (unreachable Ollama)", () => {
+  it("returns dry-run when Ollama is unreachable", async () => {
+    const origUrl = process.env.OLLAMA_URL;
+    process.env.OLLAMA_URL = "http://localhost:19999/api/generate"; // nothing listening
+    const r = await ollamaAdapter.wake({ repo: "o/r", issueNumber: 88, agent: "ollama", brief: "x", branch: "b" });
+    expect(r.status).toBe("dry-run");
+    if (origUrl !== undefined) process.env.OLLAMA_URL = origUrl;
+    else delete process.env.OLLAMA_URL;
   });
 });
 
