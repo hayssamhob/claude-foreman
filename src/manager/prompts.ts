@@ -46,8 +46,15 @@ EPIC TITLE: ${args.epicTitle}
 EPIC BODY:
 ${args.epicBody}
 
+Set "augmentOnly": true for tasks whose artifact cannot be verified by tests, a build, or a live preview:
+- Documentation (markdown files, README, CONTRIBUTING, SPEC, gotchas.md entries)
+- Prose and config files (YAML, JSON, TOML) with no test that validates their content
+- Any task where the only way to check correctness is human judgement
+
+Set "augmentOnly": false for all code, tests, and scripts that have an execution oracle.
+
 Respond with ONLY a JSON object, no prose, in this exact shape:
-{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec — interfaces fixed, zero open decisions>", "doneContract": ["<machine-checkable AC>", ...]}]}`;
+{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec — interfaces fixed, zero open decisions>", "doneContract": ["<machine-checkable AC>", ...], "augmentOnly": <true|false>}]}`;
 }
 
 export function reviewPrompt(args: {
