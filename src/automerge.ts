@@ -23,6 +23,7 @@ export function mergeGate(args: {
   mergeable: boolean | null; // GitHub's PR mergeability; null = still computing
 }): MergeGate {
   if (args.held) return { ok: false, reason: `the '${config.holdLabel}' label is on the task — waiting for you to merge manually` };
+  if (args.ci.overall === "none") return { ok: false, reason: "no automated checks found — the done-contract requires a green CI run" };
   if (args.ci.overall === "red") return { ok: false, reason: `automated tests are failing (${args.ci.detail})` };
   if (args.ci.overall === "pending") return { ok: false, reason: `automated tests are still running (${args.ci.detail})` };
   if (args.openThreads > 0)
