@@ -57,6 +57,23 @@ export const devinLocalAdapter: FighterAdapter = {
     const childEnv = { ...process.env };
     delete childEnv.RUNNER_TRACKING_ID;
 
+    // The user rule mandates the use of the PAT in ~/.zshrc because the GH action token
+    // does not provide the right access for Devin. We extract it and override GH_TOKEN.
+    try {
+      // os and fs are already imported at the top, but we need readFileSync
+      // Actually, writeFileSync and openSync are imported. Let's use dynamic import
+      // or just require if it's compiled, but we can also just use the global process
+      const homedir = require("node:os").homedir();
+      const content = require("node:fs").readFileSync(join(homedir, ".zshrc"), "utf8");
+      const match = content.match(/export\s+GITHUB_TOKEN=(ghp_[a-zA-Z0-9]+)/);
+      if (match && match[1]) {
+        childEnv.GITHUB_TOKEN = match[1];
+        childEnv.GH_TOKEN = match[1];
+      }
+    } catch (e) {
+      // Ignore if .zshrc doesn't exist or is unreadable
+    }
+
     const out = openSync("/tmp/devin-local-out.log", "a");
     const err = openSync("/tmp/devin-local-err.log", "a");
 
