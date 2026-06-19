@@ -9,7 +9,7 @@
  * Dry-run when the `devin` binary is not in PATH — never throws on a missing CLI.
  */
 import { execFileSync, spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { FighterAdapter, WakeContext, WakeResult } from "./adapter.js";
@@ -57,8 +57,11 @@ export const devinLocalAdapter: FighterAdapter = {
     const childEnv = { ...process.env };
     delete childEnv.RUNNER_TRACKING_ID;
 
+    const out = openSync("/tmp/devin-local-out.log", "a");
+    const err = openSync("/tmp/devin-local-err.log", "a");
+
     const child = spawn(binToUse, ["--prompt-file", tmpFile, "-p", "--dangerously-skip-permissions"], {
-      stdio: "ignore",
+      stdio: ["ignore", out, err],
       detached: true,
       cwd: process.cwd(),
       env: childEnv,
