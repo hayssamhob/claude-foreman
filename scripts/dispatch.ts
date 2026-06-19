@@ -11,9 +11,11 @@
 import { execFileSync } from "node:child_process";
 import { branchFor, noopAdapter, parseAgent, type FighterAdapter, type WakeContext } from "../src/dispatch/adapter.js";
 import { devinAdapter } from "../src/dispatch/devin.js";
+import { ollamaAdapter } from "../src/dispatch/ollama.js";
 
 const ADAPTERS: Record<string, FighterAdapter> = {
   devin: devinAdapter,
+  ollama: ollamaAdapter,
   noop: noopAdapter,
 };
 
