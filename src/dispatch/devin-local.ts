@@ -60,7 +60,7 @@ export const devinLocalAdapter: FighterAdapter = {
     const out = openSync("/tmp/devin-local-out.log", "a");
     const err = openSync("/tmp/devin-local-err.log", "a");
 
-    const child = spawn(binToUse, ["--prompt-file", tmpFile, "-p", "--dangerously-skip-permissions"], {
+    const child = spawn(binToUse, ["--prompt-file", tmpFile, "-p", "--permission-mode", "dangerous"], {
       stdio: ["ignore", out, err],
       detached: true,
       cwd: process.cwd(),
