@@ -40,7 +40,7 @@ export function pickupVerdict(t: TaskRow, last: CommentRow | undefined, now = Da
   if (t.status === "changes_requested" && last?.msg_type === "revision-request") {
     const waitedMin = ageMin(last.created_at);
     if (waitedMin > PICKUP_GRACE_MIN) {
-      return `The manager requested fixes ${waitedMin} minutes ago and ${agent} hasn't responded — consider pinging it manually.`;
+      return `The coach requested fixes ${waitedMin} minutes ago and ${agent} hasn't responded — consider pinging it manually.`;
     }
   }
   return null;
@@ -75,13 +75,13 @@ function plainStatus(t: TaskRow): { text: string; color: string; action?: { labe
   const prUrl = t.pr ? `https://github.com/${t.repo}/pull/${t.pr}` : null;
   switch (t.status) {
     case "queued":
-      return { text: `Waiting for ${agent} to pick this up`, color: "#d4a72c" };
+      return { text: `Waiting in the corner for ${agent} to pick this up`, color: "#d4a72c" };
     case "claimed":
-      return { text: `${agent} is working on it (started ${since(t.updated_at)})`, color: "#316dca" };
+      return { text: `${agent} stepped into the ring (started ${since(t.updated_at)})`, color: "#316dca" };
     case "in_review":
-      return { text: `${agent} finished — the manager is checking the work`, color: "#8957e5" };
+      return { text: `${agent} threw a punch — the coach is checking the work`, color: "#8957e5" };
     case "changes_requested":
-      return { text: `The manager asked ${agent} to fix a few things`, color: "#d29922" };
+      return { text: `The coach sent ${agent} back to the corner to fix a few things`, color: "#d29922" };
     case "approved":
       return config.autoMerge
         ? {
@@ -98,7 +98,7 @@ function plainStatus(t: TaskRow): { text: string; color: string; action?: { labe
       return { text: `Done ✓`, color: "#1a7f37" };
     case "failed":
       return {
-        text: `Stuck — the agents couldn't finish this one`,
+        text: `Stuck — the fighter threw in the towel`,
         color: "#cf222e",
         action: { label: "See what happened", url: `https://github.com/${t.repo}/issues/${t.issue}` },
       };
@@ -172,11 +172,11 @@ function projectName(repo: string): string {
   return repo.split("/")[1] ?? repo;
 }
 
-/** "agent-manager-hayssamhob[bot]" -> "the manager"; agent names from protocol headers win. */
+/** "agent-manager-hayssamhob[bot]" -> "the coach"; agent names from protocol headers win. */
 function displayAuthor(c: CommentRow): string {
-  if (c.msg_from === config.managerName) return "the manager";
+  if (c.msg_from === config.managerName) return "the coach";
   if (c.msg_from) return agentName(c.msg_from);
-  if (c.author.endsWith("[bot]")) return "the manager";
+  if (c.author.endsWith("[bot]")) return "the coach";
   return c.author;
 }
 
@@ -226,7 +226,7 @@ function attentionItems(tasks: TaskRow[], jobs: JobRow[], store: Store, threadMa
     }
   }
   if (jobs.some((j) => j.status === "needs_human")) {
-    items.push(`<li>The manager assistant is offline on this computer — recent requests are parked until it's back.</li>`);
+    items.push(`<li>The coach assistant is offline on this computer — recent requests are parked until it's back.</li>`);
   }
   return items;
 }
@@ -266,7 +266,7 @@ function acceptBlock(t: TaskRow, ci?: CiState): string {
     ? `<div class="point-meta">Merges itself when tests pass and conversations are resolved — add the <code>${esc(config.holdLabel)}</code> label on the task to keep it for yourself.</div>`
     : "";
   return `<div class="accept">
-    ${t.plain_summary ? `<div class="plain-summary">“${esc(t.plain_summary)}” <span class="point-meta">— the manager</span></div>` : ""}
+    ${t.plain_summary ? `<div class="plain-summary">“${esc(t.plain_summary)}” <span class="point-meta">— the coach</span></div>` : ""}
     ${autoNote}
     <form method="post" action="/dashboard/merge" onsubmit="return confirm('Accept this work and make it part of ${esc(projectName(t.repo))}?')">
       <input type="hidden" name="repo" value="${esc(t.repo)}">
@@ -277,7 +277,7 @@ function acceptBlock(t: TaskRow, ci?: CiState): string {
   </div>`;
 }
 
-/** The manager's fix checklist: every requested point and whether it's been addressed. */
+/** The coach's fix checklist: every requested point and whether it's been addressed. */
 function checklistBlock(points: RevisionPointRow[]): string {
   if (points.length === 0) return "";
   const open = points.filter((p) => p.status === "open").length;
@@ -312,7 +312,7 @@ function threadBlock(t: TaskRow, overview: ThreadOverview): string {
         ? `<strong class="waiting">replied with commit <code>${esc(th.fixCommit)}</code> but the conversation is NOT resolved — ${esc(agent)} should click “Resolve conversation” (or the fix needs re-review)</strong>`
         : th.waitingOn === "agent"
           ? `<strong class="waiting">reply expected from ${esc(agent)} — with the fix commit, then resolve</strong>`
-          : `<strong class="waiting">reply expected from you / the manager</strong>`;
+          : `<strong class="waiting">reply expected from you / the coach</strong>`;
       return `<li>
         <span class="thread-snippet">“${esc(th.firstSnippet)}${th.firstSnippet.length >= 140 ? "…" : ""}”</span>${where}<br>
         <span class="thread-meta">started by <strong>${esc(displayLogin(th.firstAuthor))}</strong> · ${th.replies} repl${th.replies === 1 ? "y" : "ies"} · last word from <strong>${esc(displayLogin(th.lastAuthor))}</strong> ${since(th.lastAt)} · ${turn}</span>
@@ -325,9 +325,9 @@ function threadBlock(t: TaskRow, overview: ThreadOverview): string {
   </div>`;
 }
 
-/** "agent-manager-hayssamhob[bot]" -> "the manager" for thread author display. */
+/** "agent-manager-hayssamhob[bot]" -> "the coach" for thread author display. */
 function displayLogin(login: string): string {
-  return login.endsWith("[bot]") ? "the manager" : login;
+  return login.endsWith("[bot]") ? "the coach" : login;
 }
 
 function projectCard(repo: string, tasks: TaskRow[], store: Store, threadMap: ThreadMap, repoBranches: RepoBranches): string {
@@ -519,7 +519,7 @@ export function renderDashboard(
 </head>
 <body>
   <h1>🤖 My AI team</h1>
-  <p class="subtitle">${agentName(config.agents[0] ?? "")}${config.agents.length > 1 ? " and " + config.agents.slice(1).map(agentName).join(", ") : ""} do the work · a manager AI checks everything · you approve the results</p>
+  <p class="subtitle">${agentName(config.agents[0] ?? "")}${config.agents.length > 1 ? " and " + config.agents.slice(1).map(agentName).join(", ") : ""} do the work · a coach checks everything · you approve the results</p>
   ${notice ? `<p class="notice">${esc(notice)}</p>` : ""}
   ${attentionHtml}
   ${projects}
@@ -532,7 +532,7 @@ export function renderDashboard(
       <textarea name="description" id="description" required placeholder="Describe it like you would to a contractor. Example: Add a contact form to the website that emails me when someone fills it in."></textarea>
       <button type="submit">Send to the team</button>
     </form>
-    <p class="card-foot">The manager will break this into tasks and hand them to the agents. Items will appear above within a few minutes.</p>
+    <p class="card-foot">The coach will break this into tasks and hand them to the fighters. Items will appear above within a few minutes.</p>
   </section>
   ${handoffPanel(store)}
   <details>

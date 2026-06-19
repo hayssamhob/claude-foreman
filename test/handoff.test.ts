@@ -9,7 +9,7 @@ const REPOS = [{ fullName: "o/r", installationId: 1 }];
 
 function seed(store: Store): void {
   store.upsertTask({ repo: "o/r", issue: 12, installation_id: 1, agent: "ollama", status: "queued", title: "Add login" });
-  store.upsertTask({ repo: "o/r", issue: 14, installation_id: 1, agent: "claude", status: "in_review", title: "Fix nav", pr: 20 });
+  store.upsertTask({ repo: "o/r", issue: 14, installation_id: 1, agent: "claude-jr", status: "in_review", title: "Fix nav", pr: 20 });
   store.upsertTask({ repo: "o/r", issue: 9, installation_id: 1, agent: "windsurf-kimi", status: "done", title: "Old work" });
   store.addRevisionPoints("o/r", 14, 1, ["use rem not px"]);
 }
@@ -49,7 +49,7 @@ describe("renderHandoff", () => {
   it("shows per-provider availability, collapsing the shared Claude login", () => {
     const store = new Store(":memory:");
     seed(store);
-    recordRateLimit(store, ["claude", "manager"], "session limit", NOW + 60 * 60_000, NOOP);
+    recordRateLimit(store, ["claude-jr", "coach"], "session limit", NOW + 60 * 60_000, NOOP);
     const md = renderHandoff(store, REPOS, { now: NOW });
 
     expect(md).toContain("## Agent availability");
