@@ -11,7 +11,11 @@
  * Gating checks post as success/failure — they hard-block the merge.
  * Informational checks post as neutral — they signal process state but
  * never hard-block the artifact.
+ *
+ * M1-12: `doneContractFromCi` is the authoritative Checks-API oracle entry point.
+ * The done-contract passes only when the GitHub Checks API reports green.
  */
+import type { CiState } from "../threads.js";
 
 /** The signal name for a per-signal check. */
 export type CheckSignal =
@@ -59,6 +63,38 @@ export function doneContractCheck(opts: {
   const detail = [
     opts.testsPass ? `Tests: pass${opts.testCount !== undefined ? ` (${opts.testCount})` : ""}` : "Tests: FAIL",
     opts.acceptanceCriteriaMet ? `Acceptance criteria: met${opts.acCount !== undefined ? ` (${opts.acCount})` : ""}` : "Acceptance criteria: NOT met",
+  ].join("\n");
+  return {
+    signal: "foreman/done-contract",
+    role: "gating",
+    conclusion: pass ? "success" : "failure",
+    title: pass ? "Done-contract met" : "Done-contract NOT met",
+    summary: detail,
+  };
+}
+
+/**
+ * M1-12: Build a done-contract check grounded in the authoritative GitHub Checks-API
+ * oracle. The done-contract passes only when CI is green **and** AC is met.
+ *
+ * Mapping from CiState.overall:
+ *   - "green"   → testsPass = true  (Checks API confirmed all checks passed)
+ *   - "red"     → testsPass = false (at least one check is failing)
+ *   - "pending" → testsPass = false (checks still running; contract not yet satisfied)
+ *   - "none"    → testsPass = true  (no CI configured; no hard-block, consistent with
+ *                                    preFilterReview and mergeGate behaviour)
+ */
+export function doneContractFromCi(ci: CiState, acceptanceCriteriaMet: boolean): SignalCheck {
+  const testsPass = ci.overall === "green" || ci.overall === "none";
+  const pass = testsPass && acceptanceCriteriaMet;
+  const ciLine =
+    ci.overall === "green" ? `CI: green (${ci.detail})` :
+    ci.overall === "none"  ? "CI: none configured" :
+    ci.overall === "pending" ? `CI: pending — ${ci.detail}` :
+    `CI: red — ${ci.detail}`;
+  const detail = [
+    ciLine,
+    acceptanceCriteriaMet ? "Acceptance criteria: met" : "Acceptance criteria: NOT met",
   ].join("\n");
   return {
     signal: "foreman/done-contract",

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   doneContractCheck,
+  doneContractFromCi,
   coachVerdictCheck,
   readinessCheck,
   costCheck,
@@ -9,6 +10,7 @@ import {
   allGatingPass,
   SIGNAL_ROLES,
 } from "../src/referee/checks.js";
+import type { CiState } from "../src/threads.js";
 
 describe("doneContractCheck", () => {
   it("passes when tests and AC both pass", () => {
@@ -30,6 +32,49 @@ describe("doneContractCheck", () => {
   it("includes test count in summary", () => {
     const c = doneContractCheck({ testsPass: true, acceptanceCriteriaMet: true, testCount: 42 });
     expect(c.summary).toContain("42");
+  });
+});
+
+describe("doneContractFromCi", () => {
+  it("passes when CI is green and AC is met — the Checks-API oracle says done", () => {
+    const ci: CiState = { overall: "green", detail: "3 checks passed" };
+    const c = doneContractFromCi(ci, true);
+    expect(c.conclusion).toBe("success");
+    expect(c.role).toBe("gating");
+    expect(c.signal).toBe("foreman/done-contract");
+  });
+
+  it("fails when CI is red — failing checks block the done-contract", () => {
+    const ci: CiState = { overall: "red", detail: "unit-tests, lint" };
+    const c = doneContractFromCi(ci, true);
+    expect(c.conclusion).toBe("failure");
+    expect(c.summary).toContain("unit-tests");
+  });
+
+  it("fails when CI is pending — done-contract not yet satisfied", () => {
+    const ci: CiState = { overall: "pending", detail: "build" };
+    const c = doneContractFromCi(ci, true);
+    expect(c.conclusion).toBe("failure");
+    expect(c.summary).toContain("pending");
+  });
+
+  it("passes when no CI is configured (none) — no oracle means no hard-block", () => {
+    const ci: CiState = { overall: "none", detail: "no automated checks set up" };
+    const c = doneContractFromCi(ci, true);
+    expect(c.conclusion).toBe("success");
+  });
+
+  it("fails when CI is green but AC is not met", () => {
+    const ci: CiState = { overall: "green", detail: "3 checks passed" };
+    const c = doneContractFromCi(ci, false);
+    expect(c.conclusion).toBe("failure");
+    expect(c.summary).toContain("Acceptance criteria");
+  });
+
+  it("propagates CI detail into summary on red", () => {
+    const ci: CiState = { overall: "red", detail: "e2e-tests" };
+    const c = doneContractFromCi(ci, true);
+    expect(c.summary).toContain("e2e-tests");
   });
 });
 
