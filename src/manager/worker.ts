@@ -215,7 +215,7 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
     await octokit.rest.issues.createComment({ owner, repo, issue_number: job.pr, body:
       `🔍 **Claim-checker: invented references found — bouncing without coach review**\n\n${detail}\n\nFix these and push again.`
     });
-    store.finishJob(job.id, "pending");
+    store.finishJob(job.id, "failed");
     return;
   }
 

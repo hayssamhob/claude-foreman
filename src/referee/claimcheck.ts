@@ -1,6 +1,6 @@
 export interface ClaimViolation {
   line: number;
-  kind: "label" | "file" | "import";
+  kind: "label";
   value: string;       // the invented reference
 }
 
@@ -30,15 +30,6 @@ export function checkClaims(diff: string, repoRoot: string, knownLabels: string[
       }
     }
 
-    // 2. Import paths: from "..../something.js"
-    const importMatches = line.matchAll(/from ["']([^"']+\.js)["']/g);
-    for (const m of importMatches) {
-      // resolve relative to src/ — check file exists
-      // skip node_modules and non-relative paths
-      if (m[1].startsWith(".")) {
-        // existence check left as an exercise
-      }
-    }
   }
 
   const pass = violations.length === 0;

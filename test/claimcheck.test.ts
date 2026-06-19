@@ -8,7 +8,7 @@ const LABELS = [
   "type:feat", "type:fix", "type:docs", "type:chore", 
   "weight:flyweight", "weight:lightweight", "weight:middleweight", "weight:heavyweight", 
   "priority:high", "priority:medium", "priority:low", 
-  "agent:antigravity", "agent:ollama", "agent:claude", "agent:devin", 
+  "agent:antigravity", "agent:ollama", "agent:claude", "agent:devin", "agent:devin-local", "agent:cursor",
   "fusion:on"
 ];
 
