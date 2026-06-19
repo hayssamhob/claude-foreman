@@ -140,3 +140,53 @@ as a hard constraint in the security policy: "never feed a Fighter raw web/issue
 3. **ChatOps commands (merge, close, label) are gated by GitHub author-association.** Only
    `OWNER` / `MEMBER` / `COLLABORATOR` comments trigger automation. A crafted comment from an
    outsider cannot trigger a merge.
+
+---
+
+## G5 — Coach review feedback must be inline threads, not top-level comments
+
+**Symptom.** The Coach posts review feedback as a top-level PR comment (`gh pr comment`).
+The Fighter pushes a fix, but there is no way to mark the point resolved — the conversation
+has no lifecycle. The Coach can't tell at a glance which points are open vs addressed, and
+the Fighter can't signal "done with this one."
+
+**First seen.** 2026-06-19 — the Coach was posting `gh pr comment` for REQUEST_CHANGES
+feedback. The Fighter correctly fixed the issues but had no mechanism to close the loop on
+each individual point.
+
+**Rule.**
+1. **All review feedback goes into inline threads via the GitHub review API**, not as
+   top-level comments. Inline threads are resolvable — the Fighter resolves each thread after
+   pushing the fix, and the Coach sees immediately which points remain open.
+2. **Use `gh api` with a JSON body to create the review** — this is the only way to attach
+   line-level comments in a single atomic review event:
+   ```bash
+   REPO="owner/repo"
+   PR=42
+   gh api "repos/$REPO/pulls/$PR/reviews" --method POST --input - <<'JSON'
+   {
+     "body": "Overall summary of the review",
+     "event": "REQUEST_CHANGES",
+     "comments": [
+       {
+         "path": "src/dispatch/cursor.ts",
+         "line": 50,
+         "side": "RIGHT",
+         "body": "`cursor` not `agent` — the binary installed by the Cursor CLI is named `cursor`."
+       },
+       {
+         "path": "test/dispatch.test.ts",
+         "line": 130,
+         "side": "RIGHT",
+         "body": "Set `process.env.PATH = '/dev/null'` before calling `wake()` so the binary probe always fails. Restore in `finally`."
+       }
+     ]
+   }
+   JSON
+   ```
+3. **Top-level comments are for dialogue, not for review points.** Use `gh pr comment` to
+   reply to a Fighter's question, acknowledge their pushback, or add context. Never use it to
+   list changes that need to be made.
+4. **Before merging, verify all threads are resolved** (or explicitly waived with a comment
+   explaining why). GitHub shows unresolved threads on the PR page and blocks the "Resolve
+   conversation" button until the author acts.
