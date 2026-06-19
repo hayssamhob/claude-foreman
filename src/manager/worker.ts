@@ -11,6 +11,7 @@ import type { JobRow, Store } from "../state/db.js";
 import { decomposePrompt, reviewPrompt } from "./prompts.js";
 import { ManagerUnavailableError, runManager } from "./runner.js";
 import { assembleContextPacket, formatContextPacket } from "../context.js";
+import { checkClaims } from "../referee/claimcheck.js";
 import { routeOutcome } from "../referee/outcome.js";
 import { preFilterReview } from "../referee/prefilter.js";
 import { ciStateFor } from "../threads.js";
@@ -203,6 +204,19 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
   let diff = diffResp.data as unknown as string;
   if (diff.length > MAX_DIFF_CHARS) {
     diff = diff.slice(0, MAX_DIFF_CHARS) + "\n\n[diff truncated for length — flag this in your review if it impairs judgement]";
+  }
+
+  const knownLabelsRes = await octokit.rest.issues.listLabelsForRepo({ owner, repo, per_page: 100 });
+  const knownLabels = knownLabelsRes.data.map(l => l.name);
+  const claimResult = checkClaims(diff, process.cwd(), knownLabels);
+  
+  if (!claimResult.pass) {
+    const detail = claimResult.violations.map(v => `line ${v.line}: invented ${v.kind} "${v.value}"`).join("\n");
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: job.pr, body:
+      `🔍 **Claim-checker: invented references found — bouncing without coach review**\n\n${detail}\n\nFix these and push again.`
+    });
+    store.finishJob(job.id, "failed");
+    return;
   }
 
   const round = task.revision_round + 1;
