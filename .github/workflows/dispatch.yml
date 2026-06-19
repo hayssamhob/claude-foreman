@@ -33,6 +33,11 @@ jobs:
         with:
           node-version: "20"
           cache: npm
+      - name: Install Cursor CLI (cursor only)
+        if: startsWith(github.event.label.name, 'agent:cursor')
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.cursor/bin" >> $GITHUB_PATH
       - run: npm ci
       - name: Wake the Fighter
         env:
@@ -40,4 +45,5 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
           DEVIN_ORG_ID: ${{ secrets.DEVIN_ORG_ID }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         run: npx tsx scripts/dispatch.ts --agent "${{ github.event.label.name }}" --issue "${{ github.event.issue.number }}"
