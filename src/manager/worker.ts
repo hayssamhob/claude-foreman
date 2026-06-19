@@ -18,11 +18,12 @@ import { ciStateFor } from "../threads.js";
 import { costForecast } from "../cost-forecast.js";
 
 const MAX_DIFF_CHARS = 60_000;
+const AUGMENT_ONLY_SENTINEL = "<!-- augment-only: true -->";
 
 export type AuthFn = (installationId: number) => Promise<Octokit>;
 
 interface DecomposeResult {
-  tasks: { title: string; agent: string; spec: string; doneContract?: string[] }[];
+  tasks: { title: string; agent: string; spec: string; doneContract?: string[]; augmentOnly?: boolean }[];
 }
 export interface ReviewResult {
   verdict: "approve" | "request_changes";
@@ -116,14 +117,14 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
       repo,
       title: t.title,
       labels: [LABEL_TASK, agentLabel(agent), statusLabel("queued")],
-      body: buildTaskBody(t.spec, agent, job.issue, job.repo, 0, Array.isArray(t.doneContract) ? t.doneContract : [], contextPacketMd),
+      body: buildTaskBody(t.spec, agent, job.issue, job.repo, 0, Array.isArray(t.doneContract) ? t.doneContract : [], contextPacketMd, t.augmentOnly ?? false),
     });
     // The assignment header needs the issue's own number, known only after creation
     await octokit.rest.issues.update({
       owner,
       repo,
       issue_number: issue.number,
-      body: buildTaskBody(t.spec, agent, job.issue, job.repo, issue.number, Array.isArray(t.doneContract) ? t.doneContract : [], contextPacketMd),
+      body: buildTaskBody(t.spec, agent, job.issue, job.repo, issue.number, Array.isArray(t.doneContract) ? t.doneContract : [], contextPacketMd, t.augmentOnly ?? false),
     });
     store.upsertTask({
       repo: job.repo,
@@ -144,12 +145,16 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
   });
 }
 
-export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = [], contextPacket = ""): string {
+export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = [], contextPacket = "", augmentOnly = false): string {
   let human = `> Parent epic: #${epic} · Assigned to: \`${agent}\` · Work on branch \`${taskBranch(agent, taskIssue || 0)}\` and open a PR containing \`Closes #${taskIssue || "<this issue>"}\`.\n\n${spec}`;
   
   if (Array.isArray(doneContract) && doneContract.length > 0) {
     const contractList = doneContract.map((c, i) => `${i + 1}. ${c}`).join("\n");
     human += `\n\n## Done-contract\n${contractList}`;
+  }
+
+  if (augmentOnly) {
+    human += `\n\n${AUGMENT_ONLY_SENTINEL}\n\n## ⚠️ Augment-Only\n> This task produces a doc/prose/config artifact with no execution oracle. A human must review and merge — the Coach does not auto-review augment-only tasks.`;
   }
 
   if (contextPacket) {
@@ -195,6 +200,17 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
   }
 
   const { data: taskIssue } = await octokit.rest.issues.get({ owner, repo, issue_number: job.issue });
+
+  // Augment-only: no execution oracle → park and notify Coach; skip AI review entirely
+  if (taskIssue.body?.includes(AUGMENT_ONLY_SENTINEL)) {
+    await octokit.rest.issues.createComment({
+      owner, repo, issue_number: job.pr,
+      body: `⚠️ **Augment-Only task — escalated to Coach**\n\nThis task has no execution oracle (doc/prose/config). @hayssamhob please review PR #${job.pr} and merge manually if the output is correct.`,
+    });
+    store.finishJob(job.id, "needs_human", "augment-only: no execution oracle");
+    return;
+  }
+
   const diffResp = await octokit.rest.pulls.get({
     owner,
     repo,
