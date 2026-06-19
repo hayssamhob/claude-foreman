@@ -1,0 +1,43 @@
+name: Dispatch
+
+# The wake-up layer (M6). When an issue gets an `agent:X` label, route it to that Fighter's
+# adapter, which fires the Fighter's runtime (it opens the PR). GitHub is the trigger — no
+# daemon, no Claude session. Coach-agnostic by design.
+#
+# Cloud-API adapters (Devin) run on a hosted runner. CLI/local adapters (Ollama, Devin-Local,
+# Cursor, Antigravity) want a self-hosted runner — set repo variable DISPATCH_RUNNER=self-hosted.
+#
+# NOTE: issue-triggered workflows run from the DEFAULT branch — this file must be on `main`
+# before labeling will fire it.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: dispatch-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    if: startsWith(github.event.label.name, 'agent:')
+    runs-on: ${{ vars.DISPATCH_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Wake the Fighter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_ORG_ID: ${{ secrets.DEVIN_ORG_ID }}
+        run: npx tsx scripts/dispatch.ts --agent "${{ github.event.label.name }}" --issue "${{ github.event.issue.number }}"
