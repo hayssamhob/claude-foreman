@@ -156,3 +156,14 @@ chase the bike thief.
 - Invent label names, file paths, or function signatures not visible in the codebase (G1).
 - Pipe prompts through `ollama run` — use the HTTP API (G2).
 - Touch auth / payments / secrets / DB-migration / delete / spend code — that work never reaches a Fighter.
+
+---
+
+## Antigravity Integration (Self-Polling)
+
+If you are using Google Antigravity (`agent:antigravity`), you can use the built-in self-polling skill to continuously watch the queue for work, so you don't need a runner or CLI trigger.
+
+**To install and run the self-polling worker:**
+1. The `.agents/skills/foreman-worker/SKILL.md` file in this repository automatically registers the skill.
+2. In the Antigravity GUI, use the `/schedule` slash command to set up a cron job (e.g., `*/5 * * * *`).
+3. Tell Antigravity to run the `foreman-worker` skill on its cron, so it automatically checks for new issues labeled `agent:antigravity` and implements them end-to-end.
