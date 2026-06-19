@@ -94,7 +94,7 @@ export function initLoop(opts: InitOptions = {}): InitResult {
   return { budgetPath, logPath, budgetCreated, logCreated };
 }
 
-/** CLI entry point — called when the user runs \`foreman init\`. */
+/** CLI entry point — called when the user runs `foreman init`. */
 export function runInitCli(args: string[]): void {
   const dirIdx = args.indexOf("--dir");
   const dir = dirIdx >= 0 && dirIdx + 1 < args.length ? args[dirIdx + 1] : undefined;
