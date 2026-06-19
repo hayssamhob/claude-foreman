@@ -4,6 +4,8 @@ import type { AuthFn } from "./manager/worker.js";
 import { notify } from "./notify.js";
 import type { Store } from "./state/db.js";
 import { ciStateFor, unresolvedThreads, type CiState } from "./threads.js";
+import { resolveTrustTier, enforceTierAction, logTierTransition, type TrustTier } from "./referee/trust-ladder.js";
+import { classifyRisk } from "./referee/trust-gate.js";
 
 /**
  * Auto-merge: once the manager has approved a PR, it merges itself the moment
@@ -21,6 +23,8 @@ export function mergeGate(args: {
   openThreads: number;
   held: boolean;
   mergeable: boolean | null; // GitHub's PR mergeability; null = still computing
+  trustOk?: boolean; // M3-2: trust-ladder gate (undefined = not checked)
+  trustReason?: string;
 }): MergeGate {
   if (args.held) return { ok: false, reason: `the '${config.holdLabel}' label is on the task — waiting for you to merge manually` };
   if (args.ci.overall === "none") return { ok: false, reason: "no automated checks found — the done-contract requires a green CI run" };
@@ -30,6 +34,8 @@ export function mergeGate(args: {
     return { ok: false, reason: `${args.openThreads} review conversation${args.openThreads > 1 ? "s are" : " is"} still unresolved` };
   if (args.mergeable === false) return { ok: false, reason: "the branch conflicts with the main line — needs a rebase" };
   if (args.mergeable === null) return { ok: false, reason: "GitHub is still computing mergeability — retrying shortly" };
+  // M3-2: trust-ladder enforcement
+  if (args.trustOk === false) return { ok: false, reason: `trust gate: ${args.trustReason ?? "not allowed"}` };
   return { ok: true, reason: "all gates green" };
 }
 
@@ -48,11 +54,26 @@ export async function sweepAutoMerge(store: Store, auth: AuthFn, log: (m: string
         ciStateFor(octokit, t.repo, t.pr!, config.checkName),
         unresolvedThreads(octokit, t.repo, t.pr!),
       ]);
+      // M3-2: trust-ladder enforcement — resolve tier from labels, classify risk, enforce
+      const tier = resolveTrustTier(labels.map((l) => l.name));
+      const riskClass = classifyRisk({
+        changedFileCount: pr.changed_files ?? 0,
+        touchesBannedPath: false, // TODO: wire to exclusion check
+        isExcludedScope: false,   // TODO: wire to scope check
+      });
+      const enforcement = enforceTierAction(tier, riskClass);
+
+      // Log tier transitions (manual opt-in via trust:L1/L2/L3 label)
+      // The tier is resolved from labels each sweep — if it changed, log it.
+      // (Transition logging is handled by the label change event, not here.)
+
       const gate = mergeGate({
         ci,
         openThreads: threads.open.length,
         held: labels.some((l) => l.name === config.holdLabel),
         mergeable: pr.mergeable,
+        trustOk: enforcement.allowed,
+        trustReason: enforcement.reason,
       });
       if (!gate.ok) {
         log(`auto-merge waiting on ${t.repo}#${t.issue} (PR #${t.pr}): ${gate.reason}`);
