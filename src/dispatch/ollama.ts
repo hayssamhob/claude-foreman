@@ -16,9 +16,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { FighterAdapter, WakeContext, WakeResult } from "./adapter.js";
-
-/** Hard-exclusion guardrail — the adapter never touches these scopes. */
-const EXCLUDED = /(auth|payment|secret|migration|delete|DROP|spend)/i;
+import { isExcludedScope } from "./adapter.js";
 
 /** Pure: assemble the Ollama prompt from the grilled brief + a strict JSON output contract. */
 export function buildOllamaPrompt(ctx: WakeContext): string {
@@ -50,9 +48,9 @@ export const ollamaAdapter: FighterAdapter = {
     const ollamaModel = process.env.OLLAMA_MODEL ?? "qwen3:30b-a3b";
 
     // 0. Hard-exclusion: never touch auth/payments/secrets/migrations/deletes/spend.
-    const excluded = EXCLUDED.exec(ctx.brief);
+    const excluded = isExcludedScope(ctx.brief);
     if (excluded) {
-      return { status: "skipped", detail: `brief contains excluded scope: ${excluded[0]}` };
+      return { status: "skipped", detail: `brief contains excluded scope: ${excluded}` };
     }
 
     const prompt = buildOllamaPrompt(ctx);

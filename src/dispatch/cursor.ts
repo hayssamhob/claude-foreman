@@ -12,9 +12,7 @@
  */
 import { execFileSync } from "node:child_process";
 import type { FighterAdapter, WakeContext, WakeResult } from "./adapter.js";
-
-/** Hard-exclusion guardrail — the adapter never touches these scopes. */
-export const CURSOR_EXCLUDED_TERMS = /(auth|payment|secret|migration|delete|DROP|spend)/i;
+import { isExcludedScope } from "./adapter.js";
 
 /** Pure: assemble the Cursor prompt — brief + file-only restriction + exclusion guardrail. */
 export function buildCursorPrompt(ctx: WakeContext): string {
@@ -32,11 +30,9 @@ export const cursorAdapter: FighterAdapter = {
   name: "cursor",
   async wake(ctx: WakeContext): Promise<WakeResult> {
     // Step 1 — exclusion check (before touching anything).
-    if (CURSOR_EXCLUDED_TERMS.test(ctx.brief)) {
-      return {
-        status: "skipped",
-        detail: `brief contains excluded scope — not dispatching to Cursor for issue #${ctx.issueNumber}`,
-      };
+    const excluded = isExcludedScope(ctx.brief);
+    if (excluded) {
+      return { status: "skipped", detail: `brief contains excluded scope: ${excluded}` };
     }
 
     // Step 2 — dry-run check.

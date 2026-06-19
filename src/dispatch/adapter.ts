@@ -19,6 +19,14 @@ export interface WakeContext {
   branch: string; // feat/issue-<N>-<slug>, precomputed
 }
 
+const EXCLUDED_SCOPE = /(auth|payment|secret|migration|delete|DROP|spend)/i;
+
+/** Returns the matched term if the brief contains excluded scope, null otherwise. */
+export function isExcludedScope(brief: string): string | null {
+  const m = EXCLUDED_SCOPE.exec(brief);
+  return m ? m[0] : null;
+}
+
 export interface WakeResult {
   status: "woken" | "dry-run" | "skipped";
   detail: string;
