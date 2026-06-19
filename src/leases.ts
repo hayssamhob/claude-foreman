@@ -14,7 +14,8 @@ export async function sweepLeases(store: Store, auth: AuthFn, log: (m: string) =
   for (const task of store.expiredLeases()) {
     try {
       const octokit = await auth(task.installation_id);
-      const others = config.agents.filter((a) => a !== task.agent);
+      const isCoach = task.agent === config.managerName;
+      const others = isCoach ? [] : config.agents.filter((a) => a !== task.agent);
       const next = others.length > 0 ? others[task.reassign_count % others.length] : task.agent;
       const reassigning = next !== task.agent;
 
@@ -28,10 +29,14 @@ export async function sweepLeases(store: Store, auth: AuthFn, log: (m: string) =
 
       const { owner, repo } = splitRepo(task.repo);
       if (reassigning) {
-        await octokit.rest.issues
-          .removeLabel({ owner, repo, issue_number: task.issue, name: agentLabel(task.agent) })
-          .catch(() => {});
-        await octokit.rest.issues.addLabels({ owner, repo, issue_number: task.issue, labels: [agentLabel(next)] });
+        if (task.agent !== config.managerName) {
+          await octokit.rest.issues
+            .removeLabel({ owner, repo, issue_number: task.issue, name: agentLabel(task.agent) })
+            .catch(() => {});
+        }
+        if (next !== config.managerName) {
+          await octokit.rest.issues.addLabels({ owner, repo, issue_number: task.issue, labels: [agentLabel(next)] });
+        }
       }
       await setStatusLabel(octokit, task.repo, task.issue, "queued");
       await postMessage(
