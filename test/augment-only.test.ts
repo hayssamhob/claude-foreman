@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildTaskBody } from "../src/manager/worker.js";
+import { buildTaskBody, AUGMENT_ONLY_SENTINEL } from "../src/manager/worker.js";
 import { decomposePrompt } from "../src/manager/prompts.js";
-
-const AUGMENT_ONLY_SENTINEL = "<!-- augment-only: true -->";
 
 describe("Augment-Only Classifier", () => {
   describe("buildTaskBody", () => {

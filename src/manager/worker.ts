@@ -18,7 +18,7 @@ import { ciStateFor } from "../threads.js";
 import { costForecast } from "../cost-forecast.js";
 
 const MAX_DIFF_CHARS = 60_000;
-const AUGMENT_ONLY_SENTINEL = "<!-- augment-only: true -->";
+export const AUGMENT_ONLY_SENTINEL = "<!-- augment-only: true -->";
 
 export type AuthFn = (installationId: number) => Promise<Octokit>;
 
@@ -55,9 +55,14 @@ export function startWorker(store: Store, auth: AuthFn, log: (msg: string) => vo
       for (let job = store.nextJob(); job; job = store.nextJob()) {
         try {
           const octokit = await auth(job.installation_id);
-          if (job.type === "decompose") await runDecompose(job, store, octokit);
-          else await runReview(job, store, octokit);
-          store.finishJob(job.id, "done");
+          if (job.type === "decompose") {
+            await runDecompose(job, store, octokit);
+            store.finishJob(job.id, "done");
+          } else {
+            const res = await runReview(job, store, octokit);
+            if (res) store.finishJob(job.id, res.status, res.reason);
+            else store.finishJob(job.id, "done");
+          }
         } catch (e) {
           if (e instanceof RateLimitedError) {
             // Not the job's fault: requeue it and stop draining until the limit clears.
@@ -167,7 +172,7 @@ export function buildTaskBody(spec: string, agent: string, epic: number, repo: s
   );
 }
 
-async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<void> {
+async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<{status: "done"|"failed"|"needs_human"|"pending", reason?: string} | void> {
   const { owner, repo } = splitRepo(job.repo);
   console.log(costForecast(store.getLedgerByAgent(), config.maxUsd).summary);
   const task = store.getTask(job.repo, job.issue);
@@ -205,10 +210,9 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
   if (taskIssue.body?.includes(AUGMENT_ONLY_SENTINEL)) {
     await octokit.rest.issues.createComment({
       owner, repo, issue_number: job.pr,
-      body: `⚠️ **Augment-Only task — escalated to Coach**\n\nThis task has no execution oracle (doc/prose/config). @hayssamhob please review PR #${job.pr} and merge manually if the output is correct.`,
+      body: `⚠️ **Augment-Only task — escalated to Coach**\n\nThis task has no execution oracle (doc/prose/config). @${owner} please review PR #${job.pr} and merge manually if the output is correct.`,
     });
-    store.finishJob(job.id, "needs_human", "augment-only: no execution oracle");
-    return;
+    return { status: "needs_human", reason: "augment-only: no execution oracle" };
   }
 
   const diffResp = await octokit.rest.pulls.get({
@@ -231,8 +235,7 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
     await octokit.rest.issues.createComment({ owner, repo, issue_number: job.pr, body:
       `🔍 **Claim-checker: invented references found — bouncing without coach review**\n\n${detail}\n\nFix these and push again.`
     });
-    store.finishJob(job.id, "failed");
-    return;
+    return { status: "failed" };
   }
 
   const round = task.revision_round + 1;
