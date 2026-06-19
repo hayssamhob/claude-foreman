@@ -6,6 +6,29 @@ function int(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Apply an effort knob to a Claude CLI command string (M2-5).
+ *
+ * Effort maps to `--max-turns N` — the maximum number of agentic turns the
+ * in-process Claude session can take. Only applies when the command starts
+ * with `claude` (an in-process session); external commands (e.g. a custom
+ * shell script) are passed through unchanged.
+ *
+ * - If the command already has `--max-turns N`, it's replaced with the new value.
+ * - If not, `--max-turns N` is appended.
+ * - If effort is undefined, the command is returned as-is.
+ */
+export function applyEffort(cmd: string, effort: number | undefined): string {
+  if (effort === undefined || !cmd.trim().startsWith("claude")) return cmd;
+  if (cmd.includes("--max-turns")) {
+    return cmd.replace(/--max-turns\s+\d+/, `--max-turns ${effort}`);
+  }
+  return `${cmd} --max-turns ${effort}`;
+}
+
+const managerEffort = (() => { const n = parseInt(process.env.MANAGER_EFFORT ?? "", 10); return Number.isFinite(n) ? n : undefined; })();
+const juniorEffort = (() => { const n = parseInt(process.env.JUNIOR_EFFORT ?? "", 10); return Number.isFinite(n) ? n : undefined; })();
+
 export const config = {
   agents: (process.env.AGENTS ?? "ollama,windsurf-kimi,claude")
     .split(",")
@@ -47,7 +70,8 @@ export const config = {
   ) as Record<string, number>,
   defaultAgentLimit: 2,
   maxRevisionRounds: int("MAX_REVISION_ROUNDS", 2),
-  managerCmd: process.env.MANAGER_CMD ?? 'claude -p --output-format json --tools "" --max-turns 1',
+  managerCmd: applyEffort(process.env.MANAGER_CMD ?? 'claude -p --output-format json --tools "" --max-turns 1', managerEffort),
+  managerEffort,
   managerDisabled: process.env.MANAGER_DISABLED === "1",
   dbPath: process.env.DB_PATH ?? "./data/foreman.db",
   /** This app's own repo URL, surfaced in the account-rotation handoff bundle. */
@@ -75,7 +99,8 @@ export const config = {
    */
   juniorAgent: (process.env.JUNIOR_AGENT ?? "claude").toLowerCase(),
   juniorEnabled: process.env.JUNIOR_ENABLED !== "0",
-  juniorCmd: process.env.JUNIOR_CMD ?? "claude -p --output-format json --dangerously-skip-permissions",
+  juniorCmd: applyEffort(process.env.JUNIOR_CMD ?? "claude -p --output-format json --dangerously-skip-permissions", juniorEffort),
+  juniorEffort,
   juniorTimeoutMinutes: int("JUNIOR_TIMEOUT_MINUTES", 30),
   workspacesDir: process.env.WORKSPACES_DIR ?? "./data/workspaces",
 };
