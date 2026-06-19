@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Foreman \u2014 a GitHub-native autonomous coding supervisor: the Coach plans and reviews, free Fighters write the code, the Referee gates every merge.",
   "main": "dist/src/index.js",
+  "bin": {
+    "foreman": "bin/foreman.js"
+  },
   "scripts": {
     "test": "vitest run",
     "start": "probot run ./dist/src/index.js",
