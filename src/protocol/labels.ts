@@ -60,5 +60,28 @@ export function labelDefinitions(agents: string[], holdLabel: string): LabelDef[
     { name: holdLabel, color: "cf222e", description: "Do not auto-merge — the owner will merge manually" },
     ...agents.map((a) => ({ name: agentLabel(a), color: "0e8a16", description: `Routed to agent: ${a}` })),
     ...ALL_STATUS.map((s) => ({ name: statusLabel(s), color: "fbca04", description: `Task status: ${s}` })),
+    // Epic milestones — M0 through M5 (extend as the project grows)
+    ...["M0", "M1", "M2", "M3", "M4", "M5", "M6"].map((m) => ({
+      name: `epic:${m}`,
+      color: "5319e7",
+      description: `Epic milestone ${m}`,
+    })),
+    // Weight tiers — used by the Coach to gauge effort
+    { name: "weight:flyweight", color: "c5def5", description: "Trivial — <30 min, one file" },
+    { name: "weight:lightweight", color: "c5def5", description: "Small — 1-2 hours, few files" },
+    { name: "weight:middleweight", color: "c5def5", description: "Medium — half day, multiple files" },
+    { name: "weight:heavyweight", color: "c5def5", description: "Large — full day+, architectural" },
+    // Recipe labels — contributed patterns (M5-6)
+    { name: "recipe:ci-sweeper", color: "bfd4f2", description: "Recipe: CI-Sweeper pattern" },
+    { name: "recipe:dependency-sweeper", color: "bfd4f2", description: "Recipe: Dependency-Sweeper pattern" },
+    { name: "recipe:changelog-drafter", color: "bfd4f2", description: "Recipe: Changelog-Drafter pattern" },
+    { name: "recipe:issue-triage", color: "bfd4f2", description: "Recipe: Issue-Triage pattern" },
+    { name: "recipe:post-merge-cleanup", color: "bfd4f2", description: "Recipe: Post-Merge-Cleanup pattern" },
+    { name: "recipe:daily-triage", color: "bfd4f2", description: "Recipe: Daily-Triage pattern" },
+    { name: "recipe:pr-babysitter", color: "bfd4f2", description: "Recipe: PR-Babysitter pattern" },
+    // Role labels — who is acting
+    { name: "role:coach", color: "fef2c0", description: "Acting as Coach (plan/judge)" },
+    { name: "role:fighter", color: "fef2c0", description: "Acting as Fighter (execute)" },
+    { name: "role:referee", color: "fef2c0", description: "Acting as Referee (gate)" },
   ];
 }
