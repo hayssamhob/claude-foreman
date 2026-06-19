@@ -6,45 +6,53 @@ import { config } from "../config.js";
 /**
  * Git plumbing for the in-process junior's workspaces. One clone per repo
  * under `data/workspaces/`, refreshed on every run. The installation token
- * travels in the remote URL (reset on each run — tokens expire hourly) and
- * is scrubbed from every error message.
+ * is passed securely via `GIT_CONFIG_*` environment variables instead of
+ * the remote URL, ensuring it is never saved to `.git/config` or leaked in logs.
  */
 
 export class GitError extends Error {}
 
-export async function git(args: string[], cwd: string, secret?: string): Promise<string> {
+export async function git(args: string[], cwd: string, envOverrides?: Record<string, string>): Promise<string> {
   return new Promise((res, reject) => {
-    const child = spawn("git", args, { cwd, windowsHide: true });
+    const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
+    const child = spawn("git", args, { cwd, env, windowsHide: true });
     let out = "";
     let err = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
-    child.on("error", (e) => reject(new GitError(scrub(e.message, secret))));
+    child.on("error", (e) => reject(new GitError(e.message)));
     child.on("close", (code) => {
       if (code === 0) res(out.trim());
-      else reject(new GitError(scrub(`git ${args.join(" ")} exited ${code}: ${err.trim() || out.trim()}`, secret)));
+      else reject(new GitError(`git ${args.join(" ")} exited ${code}: ${err.trim() || out.trim()}`));
     });
   });
-}
-
-function scrub(s: string, secret?: string): string {
-  return secret ? s.split(secret).join("***") : s;
 }
 
 export function workspaceDir(repoFull: string): string {
   return resolve(config.workspacesDir, repoFull.replace("/", "__"));
 }
 
-/** Clone the repo if missing, else refresh: point origin at a fresh token URL and fetch. */
+function getAuthEnv(token: string): Record<string, string> {
+  const b64 = Buffer.from(`x-access-token:${token}`).toString("base64");
+  return {
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "http.extraHeader",
+    GIT_CONFIG_VALUE_0: `Authorization: Basic ${b64}`,
+  };
+}
+
+/** Clone the repo if missing, else refresh: fetch using secure environment variables. */
 export async function ensureWorkspace(repoFull: string, token: string): Promise<string> {
   const dir = workspaceDir(repoFull);
-  const url = `https://x-access-token:${token}@github.com/${repoFull}.git`;
+  const url = `https://github.com/${repoFull}.git`;
+  const env = getAuthEnv(token);
+  
   if (!existsSync(join(dir, ".git"))) {
     mkdirSync(resolve(config.workspacesDir), { recursive: true });
-    await git(["clone", url, dir], resolve(config.workspacesDir), token);
+    await git(["clone", url, dir], resolve(config.workspacesDir), env);
   } else {
-    await git(["remote", "set-url", "origin", url], dir, token);
-    await git(["fetch", "origin", "--prune"], dir, token);
+    await git(["remote", "set-url", "origin", url], dir);
+    await git(["fetch", "origin", "--prune"], dir, env);
   }
   return dir;
 }
@@ -88,5 +96,5 @@ export async function headSha(dir: string): Promise<string> {
 }
 
 export async function push(dir: string, branch: string, token: string): Promise<void> {
-  await git(["push", "origin", `${branch}:${branch}`], dir, token);
+  await git(["push", "origin", `${branch}:${branch}`], dir, getAuthEnv(token));
 }

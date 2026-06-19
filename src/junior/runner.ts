@@ -82,7 +82,14 @@ export function startJunior(store: Store, auth: AuthFn, log: (m: string) => void
 }
 
 async function installationToken(octokit: Octokit): Promise<string> {
-  const res = (await octokit.auth({ type: "installation" })) as { token: string };
+  const res = (await octokit.auth({
+    type: "installation",
+    permissions: {
+      contents: "write",
+      pull_requests: "write",
+      issues: "write",
+    },
+  })) as { token: string };
   return res.token;
 }
 
