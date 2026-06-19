@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { parseAgent, slugify, branchFor, noopAdapter } from "../src/dispatch/adapter.js";
 import { buildDevinPrompt, devinAdapter } from "../src/dispatch/devin.js";
 import { buildOllamaPrompt, safePath, ollamaAdapter } from "../src/dispatch/ollama.js";
+import { buildCursorPrompt, CURSOR_EXCLUDED_TERMS, cursorAdapter } from "../src/dispatch/cursor.js";
+import { buildDevinLocalPrompt, devinLocalAdapter } from "../src/dispatch/devin-local.js";
 
 describe("parseAgent", () => {
   it("extracts the agent name", () => expect(parseAgent("agent:devin")).toBe("devin"));
@@ -68,6 +70,66 @@ describe("ollamaAdapter dry-run (unreachable Ollama)", () => {
     expect(r.status).toBe("dry-run");
     if (origUrl !== undefined) process.env.OLLAMA_URL = origUrl;
     else delete process.env.OLLAMA_URL;
+  });
+});
+
+describe("buildCursorPrompt", () => {
+  const ctx = { repo: "o/r", issueNumber: 89, agent: "cursor", brief: "Implement the widget.", branch: "feat/issue-89-cursor" };
+  it("embeds the brief", () => expect(buildCursorPrompt(ctx)).toContain("Implement the widget."));
+  it("restricts to file edits only", () => expect(buildCursorPrompt(ctx)).toMatch(/do not.*branch|only modify/i));
+  it("carries the exclusion guardrail", () => expect(buildCursorPrompt(ctx)).toMatch(/auth|payment|secret/i));
+  it("references the issue number", () => expect(buildCursorPrompt(ctx)).toContain("#89"));
+});
+
+describe("CURSOR_EXCLUDED_TERMS", () => {
+  it("matches auth", () => expect(CURSOR_EXCLUDED_TERMS.test("harden the auth flow")).toBe(true));
+  it("matches payment", () => expect(CURSOR_EXCLUDED_TERMS.test("add payment processing")).toBe(true));
+  it("does not match safe briefs", () => expect(CURSOR_EXCLUDED_TERMS.test("add a help text tooltip")).toBe(false));
+});
+
+describe("cursorAdapter", () => {
+  it("has name cursor", () => expect(cursorAdapter.name).toBe("cursor"));
+  it("returns dry-run when CURSOR_API_KEY absent", async () => {
+    const saved = process.env.CURSOR_API_KEY;
+    delete process.env.CURSOR_API_KEY;
+    const r = await cursorAdapter.wake({ repo: "o/r", issueNumber: 89, agent: "cursor", brief: "Build a widget.", branch: "b" });
+    expect(r.status).toBe("dry-run");
+    if (saved !== undefined) process.env.CURSOR_API_KEY = saved;
+  });
+  it("skips excluded scope even with a key", async () => {
+    const saved = process.env.CURSOR_API_KEY;
+    process.env.CURSOR_API_KEY = "fake-key";
+    const r = await cursorAdapter.wake({ repo: "o/r", issueNumber: 89, agent: "cursor", brief: "Harden auth tokens.", branch: "b" });
+    expect(r.status).toBe("skipped");
+    if (saved !== undefined) process.env.CURSOR_API_KEY = saved;
+    else delete process.env.CURSOR_API_KEY;
+  });
+});
+
+describe("buildDevinLocalPrompt", () => {
+  const ctx = { repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "Add the widget.", branch: "feat/issue-89-devin" };
+  it("embeds the grilled brief", () => expect(buildDevinLocalPrompt(ctx)).toContain("Add the widget."));
+  it("instructs Closes #N", () => expect(buildDevinLocalPrompt(ctx)).toContain("Closes #89"));
+  it("instructs the done-signal", () => expect(buildDevinLocalPrompt(ctx)).toContain("✅ #89 done"));
+  it("names the repo and branch", () => {
+    const p = buildDevinLocalPrompt(ctx);
+    expect(p).toContain("o/r");
+    expect(p).toContain("feat/issue-89-devin");
+  });
+  it("carries the exclusion guardrail", () => expect(buildDevinLocalPrompt(ctx)).toMatch(/auth|secrets|migrations/i));
+});
+
+describe("devinLocalAdapter", () => {
+  it("has name devin-local", () => expect(devinLocalAdapter.name).toBe("devin-local"));
+  it("returns dry-run when devin binary absent", async () => {
+    const savedPath = process.env.PATH;
+    process.env.PATH = "/dev/null"; // garantit que execFileSync("devin") échoue
+    try {
+      const r = await devinLocalAdapter.wake({ repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "x", branch: "b" });
+      expect(r.status).toBe("dry-run");
+    } finally {
+      process.env.PATH = savedPath;
+    }
   });
 });
 
