@@ -81,6 +81,46 @@ cleaner couldn't perfectly reconstruct a line-wrapped string literal.
 
 ---
 
+## G4 — Hard-exclusion regex false-positives on meta-briefs
+
+**Symptom.** The `EXCLUDED` / `CURSOR_EXCLUDED_TERMS` regex inside an adapter blocks dispatch
+because the *brief itself* uses an excluded word in an explanatory context — e.g. a brief
+titled "Add secret-scan hook" or "Implement the migration-check linter" matches
+`/(secret|migration)/i` and the adapter returns `{ status:"skipped" }` before doing any work.
+The Coach never finds out without inspecting the skipped run.
+
+**First seen.** PR #93 (Ollama adapter, M6-3) — Devin flagged during implementation that the
+`EXCLUDED` regex in `src/dispatch/ollama.ts` would fire on any brief mentioning "secret" (e.g.
+issue #34 "Secret-scan hook on fighter output").
+
+**Concrete case (not theoretical).** Issue #34 is labeled `agent:ollama` and its grilled brief
+asks the Fighter to build `src/guard/secretscan.ts` — a secret-scanning hook. The word "secret"
+appears throughout the brief (title, file path, pattern names). If the ollama adapter fires on
+#34, the `EXCLUDED` regex matches "secret" and returns `{ status:"skipped" }` before the
+Fighter ever runs. **The dispatch system blocks the very task it's trying to dispatch.** The
+Coach would see an audit comment ("brief contains excluded scope: secret") and have to
+manually override — defeating the purpose of the automated wake-up layer.
+
+**Duplication.** The same regex is copy-pasted across adapters: `EXCLUDED` in
+`src/dispatch/ollama.ts` and `CURSOR_EXCLUDED_TERMS` in `src/dispatch/cursor.ts` — identical
+patterns, different variable names. A drift between them is inevitable. Extract a shared
+`isExcludedScope(brief): { excluded: boolean; term?: string }` in `src/dispatch/adapter.ts`
+and have every adapter call it.
+
+**Rule.**
+1. **Exclusion regex guards the *intent*, not the *vocabulary*.** The guard is meant to stop a
+   Fighter from *touching* auth / payment / secret / migration code — not to block *talking
+   about* those topics. Refine the check: e.g. scan only for action verbs ("add auth", "alter
+   table", "delete from") rather than nouns alone.
+2. **Alternatively, move the exclusion check to the Coach (dispatch time).** The Coach already
+   reads the brief before dispatch; it can refuse to label the issue `agent:X` if the task is
+   in scope. The adapter's guard then becomes a last-resort backstop, not the primary gate.
+3. **Log skips visibly.** When an adapter returns `skipped`, the dispatch.ts router must post an
+   audit comment on the issue so the Coach sees it and can investigate or override.
+4. **Deduplicate.** One shared helper in `adapter.ts`, not per-adapter regex constants.
+
+---
+
 ## G3 — Never feed a Fighter raw GitHub issue/PR text (prompt injection)
 
 **Symptom.** A GitHub issue or PR body contains text crafted to hijack a Fighter's next
