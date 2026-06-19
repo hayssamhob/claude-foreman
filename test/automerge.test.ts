@@ -10,8 +10,10 @@ describe("mergeGate", () => {
     expect(mergeGate({ ci: green, openThreads: 0, held: false, mergeable: true }).ok).toBe(true);
   });
 
-  it("merges when the repo has no CI at all", () => {
-    expect(mergeGate({ ci: none, openThreads: 0, held: false, mergeable: true }).ok).toBe(true);
+  it("blocks when no automated checks are found (none) — done-contract requires a green CI run", () => {
+    const g = mergeGate({ ci: none, openThreads: 0, held: false, mergeable: true });
+    expect(g.ok).toBe(false);
+    expect(g.reason).toContain("no automated checks found");
   });
 
   it("waits on the hold label, even with everything green", () => {
