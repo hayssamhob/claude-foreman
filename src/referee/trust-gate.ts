@@ -8,7 +8,8 @@
  *   2. The PR must be classified as low-risk (no banned paths, small diff)
  */
 
-import type { TrustTier } from "./readiness.js";
+/** The trust tier (mirrors readiness.ts — defined locally to avoid a circular dep). */
+export type TrustTier = "L1" | "L2" | "L3";
 
 /** The risk classification of a PR. */
 export type RiskClass = "low" | "medium" | "high";
