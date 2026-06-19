@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { recoverFromCrash, type RecoveryReport } from "../src/state/recovery.js";
+import { recoverFromCrash, type RecoveryReport } from "../src/state/sync.js";
 import type { Store } from "../src/state/db.js";
 import type { TaskRow } from "../src/state/db.js";
 
 // Mock Store — we only test the pure recovery logic, not the GitHub rebuild
 function makeMockStore(tasks: TaskRow[]): Store {
-  const upserts: any[] = [];
+  const updates: any[] = [];
   return {
     listTasks: () => tasks,
-    upsertTask: (t: any) => upserts.push(t),
-    _upserts: upserts,
+    updateTask: (repo: string, issue: number, fields: any) => updates.push({ repo, issue, ...fields }),
+    _updates: updates,
   } as any;
 }
 
@@ -27,8 +27,10 @@ describe("recoverFromCrash", () => {
     const store = makeMockStore(tasks);
     const report = recoverFromCrash(store, now);
     expect(report.staleTasksReset).toBe(1);
-    expect((store as any)._upserts).toHaveLength(1);
-    expect((store as any)._upserts[0].status).toBe("queued");
+    expect((store as any)._updates).toHaveLength(1);
+    expect((store as any)._updates[0].status).toBe("queued");
+    expect((store as any)._updates[0].lease_expires_at).toBeNull();
+    expect((store as any)._updates[0].stale_warned_at).toBeNull();
   });
 
   it("does not reset claimed tasks whose lease is still valid", () => {

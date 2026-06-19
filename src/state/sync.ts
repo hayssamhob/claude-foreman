@@ -3,9 +3,9 @@
  *
  * The local SQLite cache is disposable and rebuildable from GitHub.
  * If the daemon crashes, on restart:
- *   1. recoverStaleJobs() — already exists, resets 'running' jobs to 'pending'
- *   2. recoverStaleTasks() — resets 'claimed' tasks whose lease has expired
- *   3. rebuildFromGitHub() — rebuilds the entire task table from GitHub issues
+ *   1. recoverStaleJobs() — already exists in db.ts, resets 'running' jobs to 'pending'
+ *   2. recoverFromCrash() — resets 'claimed' tasks whose lease has expired
+ *   3. rebuildCacheFromGitHub() — rebuilds the entire task table from GitHub issues
  *
  * This makes the SQLite cache a pure performance optimization — the source
  * of truth is always GitHub (issues, PRs, labels, comments).
@@ -13,7 +13,7 @@
 
 import type { Octokit } from "../octokit.js";
 import { splitRepo } from "../github.js";
-import type { Store } from "../state/db.js";
+import type { Store } from "./db.js";
 import { LABEL_TASK, type TaskStatus } from "../protocol/labels.js";
 
 /** Parse the agent from a list of labels — returns the first agent:X match. */
@@ -48,35 +48,25 @@ export interface RecoveryReport {
  * This extends the existing recoverStaleJobs() with task recovery.
  */
 export function recoverFromCrash(store: Store, now = Date.now()): RecoveryReport {
-  // 1. Reset stale jobs (already in db.ts, but we count them here)
-  // recoverStaleJobs() is called separately by the daemon on startup;
-  // here we focus on tasks.
-
-  // 2. Reset stale tasks — claimed tasks whose lease has expired
+  // Reset stale tasks — claimed tasks whose lease has expired
   const tasks = store.listTasks();
   let staleTasksReset = 0;
   for (const t of tasks) {
     if (t.status === "claimed" && t.lease_expires_at !== null && t.lease_expires_at < now) {
-      store.upsertTask({
-        repo: t.repo,
-        issue: t.issue,
-        installation_id: t.installation_id,
-        agent: t.agent,
+      // Use updateTask (not upsertTask) so we can clear lease + stale fields
+      store.updateTask(t.repo, t.issue, {
         status: "queued",
+        lease_expires_at: null,
+        stale_warned_at: null,
       });
       staleTasksReset++;
     }
   }
 
-  // 3. Clear orphaned tasks — tasks whose issue was closed on GitHub
-  // (This is reconciled by rebuildFromGitHub, not here — we just count
-  //  what would be cleared for the report.)
-  const orphanedTasksCleared = 0;
-
   return {
     staleJobsReset: 0, // counted by recoverStaleJobs() in db.ts
     staleTasksReset,
-    orphanedTasksCleared,
+    orphanedTasksCleared: 0, // reconciled by rebuildCacheFromGitHub
   };
 }
 
@@ -93,14 +83,15 @@ export interface RebuildReport {
  * Rebuild the SQLite task cache from GitHub.
  *
  * For each repo the app is installed on:
- *   1. Fetch all open issues labeled with the task label
- *   2. For each, upsert the task row with the current status/agent/PR
- *   3. Close any local tasks whose GitHub issue was closed
+ *   1. Fetch all open issues labeled with the task label (paginated)
+ *   2. Fetch all open PRs once per repo (not N+1 per issue)
+ *   3. For each issue, upsert the task row + link the PR via regex matching
+ *   4. Close any local tasks whose GitHub issue was closed
  *
  * This makes the cache disposable — delete the DB file, restart, and
  * it rebuilds from GitHub. The source of truth is always GitHub.
  */
-export async function rebuildFromGitHub(
+export async function rebuildCacheFromGitHub(
   store: Store,
   octokit: Octokit,
   repos: string[],
@@ -114,8 +105,6 @@ export async function rebuildFromGitHub(
     errors: [],
   };
 
-  // Track all GitHub issue keys we see, so we can close local tasks
-  // that no longer exist on GitHub (orphaned from a deleted issue).
   const seenKeys = new Set<string>();
 
   for (const repoFull of repos) {
@@ -123,14 +112,27 @@ export async function rebuildFromGitHub(
     try {
       const { owner, repo } = splitRepo(repoFull);
 
-      // Fetch open issues with the task label
-      const { data: issues } = await octokit.rest.issues.listForRepo({
+      // Fetch all open issues with the task label (paginated to avoid missing issues)
+      const issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
         owner,
         repo,
         labels: taskLabel,
         state: "open",
         per_page: 100,
       });
+
+      // Fetch all open PRs once per repo (not N+1 per issue)
+      let prs: { number: number; body: string | null }[] = [];
+      try {
+        prs = await octokit.paginate(octokit.rest.pulls.list, {
+          owner,
+          repo,
+          state: "open",
+          per_page: 100,
+        });
+      } catch {
+        // PR lookup is best-effort
+      }
 
       for (const issue of issues) {
         const labels = issue.labels.map((l) => {
@@ -144,35 +146,28 @@ export async function rebuildFromGitHub(
         const key = `${repoFull}#${issue.number}`;
         seenKeys.add(key);
 
-        // Find the PR linked to this task (by "Closes #N" in PR bodies)
+        // Find the PR linked to this task using regex with word boundaries
+        // to avoid partial matches (e.g. #8 matching #89)
         let prNumber: number | null = null;
-        try {
-          const { data: prs } = await octokit.rest.pulls.list({
-            owner,
-            repo,
-            state: "open",
-            per_page: 100,
-          });
-          for (const pr of prs) {
-            if (pr.body && pr.body.includes(`Closes #${issue.number}`)) {
-              prNumber = pr.number;
-              report.prsLinked++;
-              break;
-            }
+        const linkRegex = new RegExp(`\\bcloses\\s+#${issue.number}\\b`, "i");
+        for (const pr of prs) {
+          if (pr.body && linkRegex.test(pr.body)) {
+            prNumber = pr.number;
+            report.prsLinked++;
+            break;
           }
-        } catch {
-          // PR lookup is best-effort
         }
 
         store.upsertTask({
           repo: repoFull,
           issue: issue.number,
-          installation_id: 0, // filled by the caller's auth context
+          installation_id: 0,
           agent,
           status,
           title: issue.title,
-          pr: prNumber,
         });
+        // upsertTask's ON CONFLICT doesn't update 'pr' — update it explicitly
+        store.updateTask(repoFull, issue.number, { pr: prNumber });
         report.tasksRebuilt++;
       }
     } catch (e) {
@@ -185,14 +180,7 @@ export async function rebuildFromGitHub(
   for (const t of localTasks) {
     const key = `${t.repo}#${t.issue}`;
     if (!seenKeys.has(key) && t.status !== "done" && t.status !== "failed") {
-      // The GitHub issue was closed or deleted — mark the local task as done
-      store.upsertTask({
-        repo: t.repo,
-        issue: t.issue,
-        installation_id: t.installation_id,
-        agent: t.agent,
-        status: "done",
-      });
+      store.updateTask(t.repo, t.issue, { status: "done" });
       report.tasksClosed++;
     }
   }
@@ -225,7 +213,7 @@ export async function cacheHealthCheck(
   for (const repoFull of repos) {
     try {
       const { owner, repo } = splitRepo(repoFull);
-      const { data: issues } = await octokit.rest.issues.listForRepo({
+      const issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
         owner,
         repo,
         labels: taskLabel,
