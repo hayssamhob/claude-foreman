@@ -1,293 +1,117 @@
 ---
 name: claude-foreman
-version: 1.1.0
+version: 2.0.0
 description: |
-  Autonomous coding supervisor — Claude thinks and reviews, free models (Kimi, Gemini)
-  do the typing. Dispatch GitHub issues or task files to Windsurf, Antigravity, or Cursor.
-  Create new issues and dispatch them in one shot. Run queues of issues end-to-end.
-  Invoke with: /claude-foreman [issue-ref|task-file] [assistant]
-  Proactively invoke when the user says "send this to Kimi", "have Windsurf do it",
-  "dispatch to Gemini", "use foreman", "create an issue for X", or writes a .tasks/ file.
+  Coach a fleet of cheap/free coding agents ("Fighters") over GitHub. Claude stays strategic
+  (scope, interfaces, review); Fighters do the tactical typing. Work flows as a queue of GitHub
+  issues: dispatch → grill → implement → review → merge. Invoke when the user says "use foreman",
+  "dispatch this", "send to a Fighter", "run the coach loop", or wants issues decomposed and worked.
 allowed-tools:
   - Bash
   - Read
   - Glob
 ---
 
-# Claude Foreman — Autonomous Coding Supervisor
+# Claude Foreman — the Coach
 
-Claude thinks. Free models type. Foreman makes sure it's done right.
+**Claude thinks strategically. Cheap Fighters do the tactical typing. The harness makes it work.**
 
-**Goal: minimise Claude tokens per dispatch cycle.**
-Every phase is ONE Bash tool call. Never poll in multiple calls. Never read full files.
+AI has eaten tactical programming — writing the lines, fixing the syntax. Your edge is *strategic*:
+scoping work, designing interfaces, keeping the codebase cheap to change, and reviewing. You have a
+fleet of cheap/free Fighters (Ollama, Antigravity, Devin, Claude-jr) for the typing. Your job is to
+keep them productive without doing their work — **dispatch and stop; review and merge.**
 
-## Plugin
+> **The bet:** a *cheap* Fighter succeeds only when its **environment** is good — an airtight brief,
+> fixed interfaces, a codebase that's easy to change. That environment is **Agent Experience (AX)**.
+> Invest there and a stupider model does the same work for fewer tokens. Hamstring it and you'll need
+> an expensive model just to recover. Optimising token spend *is* optimising AX.
 
-All logic lives in the `claude-foreman` Python package, installed as the `foreman` CLI.
+## Queue, not loop
 
-```bash
-foreman --help   # verify the CLI is on PATH
-# If not found: pip install -e /path/to/claude-foreman
-```
-
-## Arguments
-
-- `$ARGUMENTS[0]` — one of:
-  - GitHub issue ref: `owner/repo#123` or full issue URL
-  - Task file path: `/abs/path/to/.tasks/NNN-slug.md`
-  - Nothing — check for pending `.tasks/*.md` and ask
-- `$ARGUMENTS[1]` — `windsurf` | `antigravity` | `cursor` (default: `windsurf`)
-
-## IDE Ports
-
-| IDE | Port |
-|-----|------|
-| Windsurf | 19854 |
-| Antigravity | 19855 |
-| Cursor | 19856 |
+The backlog of GitHub issues is the queue; Fighters are nodes that pick work off it. You run a
+two-phase pass (on a cron, or on demand) over that queue. There is no infinite loop — only scoped
+tasks taken AFK from dispatch to merge, with **human-in-the-loop checkpoints** you push as far toward
+the end as trust allows.
 
 ---
 
-## Choosing a Workflow
+## Phase 1 — React: clear finished work off the queue
 
-| Situation | Command |
-|-----------|---------|
-| Issue already exists on GitHub | `foreman dispatch-issue` |
-| Need to CREATE the issue first | `foreman create-and-dispatch` |
-| Multiple issues, run sequentially | `foreman queue` |
-| Detailed task file (no GitHub issue) | `foreman dispatch-task` |
+For each open PR with a Fighter done-signal (`@hayssamhob ✅ #N done`):
 
----
+1. **Oracle** (non-negotiable gate): `npm run build && npm test`. Red ⇒ do not review further; bounce it.
+2. **Claim-check** the diff against the repo — no invented labels/paths/symbols (G1).
+3. **Review for correctness AND AX** — deep modules (small interface hiding complexity), easier-to-
+   change-next-time, honest tests that pin the spec's behaviour.
+4. **Resolve bot/Gemini comments** — apply valid suggestions, push `--force-with-lease`, reply.
+5. **Merge if green.** `fusion:on` issues → compare both Fighters' PRs, merge the winner, close the
+   loser with the reason.
+6. **Audit comment** on the linked issue.
 
-## Workflow A — Dispatch Existing Issue (3 tool calls)
+**Self-improving loop ("buy a lock").** When a review surfaces a *systemic* failure — a class of
+mistake a Fighter will repeat — append it to `gotchas.md` in the same PR. Every Fighter reads that
+file for free, so the next one never hits it. You're reviewing the system that makes the code, not
+just the code.
 
-```bash
-REPO="depollutenow/depollute-shop"
-IDE="windsurf"
-WORKTREE="/absolute/path/to/worktree"
+## Phase 2 — Proact: keep the queue flowing (grill before dispatch)
 
-# Phase 1: fetch + branch + dirty-check + preflight + open IDE + dispatch
-# JSON output on stdout — extract head + worktree for Phase 2
-OUT=$(foreman dispatch-issue "$REPO#42" \
-    --ide "$IDE" --worktree "$WORKTREE" \
-    --comment)                          # posts "🤖 Dispatched..." on GitHub issue
-PRE_HEAD=$(echo "$OUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['head'])")
+For each Fighter below capacity (1 in-flight issue each), take the next unassigned issue (M1 → M2 →
+good-first M3/M4) and dispatch it. **Dispatch is not "paste the issue and go" — it is grilling the
+spec until a cheap Fighter cannot misalign:**
 
-# Phase 2: block until agent commits; create PR automatically on success
-foreman wait \
-    --worktree "$WORKTREE" \
-    --pre-head "$PRE_HEAD" \
-    --issue "$REPO#42" \
-    --auto-pr \                         # runs gh pr create, posts PR link as comment
-    --timeout 600
+1. **Grill the spec to zero open decision branches.** Privately list the consequential decisions the
+   task implies (naming, error handling, edge cases, where code lives, the module interface) and
+   *resolve each one in the brief*. An unresolved decision is a guess you've handed to the cheapest
+   model in the system — it will guess wrong and cost you a build + a review round.
+2. **Design the hard parts up front.** Fix the interface/contract (exact signatures, types, paths,
+   imports) yourself; the Fighter implements *behind* it. Prefer vertical slices (type → logic →
+   test) over horizontal layers.
+3. **Inject ground truth — never raw issue text (G3).** Brief from GitHub-resident sources you read
+   for free: real labels (`gh label list`), the file tree, `gotchas.md`, the issue body. Copy real
+   signatures from source — never invent (G1).
+4. **Respect the hard exclusion list.** Auth / payments / secrets / DB-migrations / deletes / spend
+   never go to a Fighter, regardless of labels — that work stays with you.
+5. **Label + post the brief**, then **stop.** Add `agent:<name>` + `priority:high`; post the
+   ground-truth brief with the done-signal format. Do not implement the work yourself.
 
-# Phase 3: diff + closing-ref check + TypeScript errors + optional tests
-foreman verify \
-    --worktree "$WORKTREE" \
-    --issue "$REPO#42" \
-    --run-tests "npm test -- --passWithNoTests"
-```
-
-**Safety guards built into every dispatch:**
-- Dirty worktree check — refuses to dispatch if uncommitted changes exist
-- Pre-flight — verifies IDE is on the correct workspace/branch (no wrong-window dispatch)
-- `--new-window` — opens a fresh IDE window (no stale tabs)
-- `windsurf chat` CLI — avoids all AppleScript focus failures
-- HEAD-hash comparison in wait — no `--since` false triggers
-- Timeout diagnosis — screenshot + bridge health check on timeout
-
-**On timeout:** `foreman wait` automatically takes a screenshot to `/tmp/foreman-timeout-*.png`
-and queries the bridge `/health` endpoint to tell you if the agent is still saving files or stuck.
+If all Fighters are at capacity, do nothing — the queue is saturated.
 
 ---
 
-## Workflow B — Create Issue Then Dispatch (3 tool calls)
+## Dispatch brief — required shape
 
-Use this when the work isn't tracked on GitHub yet. Claude writes the spec,
-this command creates the issue and dispatches it in one shot.
+Every brief a Fighter receives must contain, in your words (not the raw issue):
 
-```bash
-# Claude writes the issue body to a temp file first:
-cat > /tmp/issue-spec.md << 'EOF'
-## What to do
-Implement dark mode toggle in the settings page.
+- **What to build** — the behaviour, not a vibe.
+- **Fixed interface** — exact signatures/types/paths/imports, copied from source.
+- **Files in scope** + an explicit **do-not-touch** list.
+- **Acceptance criteria** as machine-checkable bullets (the done-contract).
+- **Done-signal format** for that Fighter type (see `FIGHTER_PROTOCOL.md`).
 
-### Steps
-1. Add `darkMode` boolean to user preferences schema
-2. Add toggle UI in `Settings.tsx`
-3. Apply `dark` class to `<html>` based on preference
-
-### Acceptance criteria
-- Toggle persists across page reloads (localStorage)
-- All existing tests pass
-EOF
-
-# Create GitHub issue + dispatch in one call
-OUT=$(foreman create-and-dispatch depollutenow/depollute-shop \
-    "Add dark mode toggle to settings page" \
-    --body-file /tmp/issue-spec.md \
-    --ide windsurf \
-    --worktree ~/CascadeProjects/dn-windsurf \
-    --comment)
-
-# Extract fields from JSON output
-PRE_HEAD=$(echo "$OUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['head'])")
-ISSUE_REF=$(echo "$OUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['repo']+'#'+str(d['number']))")
-echo "Created and dispatched: $ISSUE_REF"
-
-# Wait + auto-PR (same as Workflow A)
-foreman wait \
-    --worktree ~/CascadeProjects/dn-windsurf \
-    --pre-head "$PRE_HEAD" \
-    --issue "$ISSUE_REF" \
-    --auto-pr
-
-foreman verify \
-    --worktree ~/CascadeProjects/dn-windsurf \
-    --issue "$ISSUE_REF"
-```
-
-**When to use `create-and-dispatch` vs writing a task file:**
-- Use `create-and-dispatch` when the work should be tracked on GitHub (most cases)
-- Use `dispatch-task` for purely internal/infra work that doesn't need a GitHub record
+If you cannot fill the "fixed interface" line because *you* haven't decided it yet — decide it now.
+That decision is the strategic work; it's the part you don't delegate.
 
 ---
 
-## Workflow C — Queue (1 tool call for N issues)
+## Human-in-the-loop checkpoints (push them rightward over time)
 
-Runs multiple issues sequentially end-to-end: dispatch → wait → verify → PR.
-Each issue gets its own isolated worktree (`dn-issue-{N}`) by default.
+You gate two things by reviewing: **danger** (security/secrets/destructive change must never
+auto-ship) and **insight** (you learn how your harness is performing). Remove a checkpoint only when
+a class of change has earned trust — and keep spot-checking the auto-approved ones, because *someone
+has to review the reviewer.* The exclusion list never earns auto-merge.
 
-```bash
-foreman queue \
-    depollutenow/depollute-shop#42 \
-    depollutenow/depollute-shop#43 \
-    depollutenow/depollute-shop#44 \
-    --ide windsurf \
-    --worktree ~/CascadeProjects/dn-windsurf \
-    --auto-pr \
-    --run-tests "npm test -- --passWithNoTests" \
-    --timeout 600 \
-    --stop-on-failure     # halt if any issue fails (default)
-```
+## Anti-patterns
 
-Queue prints a summary at the end:
-```
-✅ depollutenow/depollute-shop#42 → https://github.com/.../pull/101
-✅ depollutenow/depollute-shop#43 → https://github.com/.../pull/102
-❌ depollutenow/depollute-shop#44 (tests failed)
-```
+1. ❌ Implementing a Fighter's task yourself instead of dispatching — you're the Coach, stay strategic.
+2. ❌ Dispatching a spec with open decision branches — grill it to zero first.
+3. ❌ Pasting raw issue/PR text into a Fighter brief — summarize/classify (G3).
+4. ❌ Auto-merging anything on the exclusion list — never, regardless of trust.
+5. ❌ Merging without the oracle (`build && test`) green — no execution oracle ⇒ never auto-merge.
+6. ❌ Fixing the same Fighter mistake twice without writing it into `gotchas.md`.
+7. ❌ Bloating this skill or a brief with instructions a leaner prompt would carry — keep it tight.
 
-**Queue is the power move.** While you sleep, Foreman dispatches all three,
-waits for each, verifies, creates PRs, and stops if anything needs human attention.
+## Reference
 
----
-
-## Workflow D — Task File (fallback, no GitHub issue)
-
-```bash
-# Phase 0: preflight (also checks for dirty worktree)
-PREFLIGHT=$(foreman preflight \
-    --ide windsurf \
-    --worktree /abs/path/to/worktree \
-    --branch feat/my-branch)
-PRE_HEAD=$(echo "$PREFLIGHT" | python3 -c "import sys,json; print(json.load(sys.stdin)['head'])")
-
-# Phase 1: dispatch task file
-foreman dispatch-task /abs/path/to/.tasks/010-slug.md \
-    --ide windsurf \
-    --worktree /abs/path/to/worktree
-
-# Phase 2: wait
-foreman wait --worktree /abs/path/to/worktree --pre-head "$PRE_HEAD"
-
-# Phase 3: verify
-foreman verify --worktree /abs/path/to/worktree --run-tests "npm test"
-```
-
----
-
-## Token Budget
-
-| Workflow | Tool calls | Est. tokens |
-|----------|-----------|-------------|
-| A — dispatch-issue + wait + verify | 3 | ~1,300 |
-| B — create-and-dispatch + wait + verify | 3 | ~1,400 |
-| C — queue (N issues) | 1 | ~500 + N×200 |
-| D — task file (preflight + dispatch + wait + verify) | 4 | ~1,600 |
-
-Queue is the most token-efficient for multiple issues.
-
----
-
-## After `foreman verify` — Claude's Decision
-
-| Signal | Action |
-|--------|--------|
-| No errors, closing ref present, tests pass | ✅ Mark clean, next issue |
-| Missing `closes #N` in commit | Ask agent to amend commit |
-| TypeScript errors | Re-dispatch with error context |
-| Circle detected | Claude takes over (max 50 lines) |
-| Tests failing | Re-dispatch or escalate |
-| Timeout + bridge shows no recent saves | Agent stuck — check screenshot, retry |
-
----
-
-## Token Accounting (after every dispatch)
-
-```
-## Foreman Report — [issue ref or task]
-
-| Phase | Calls | Tokens |
-|-------|-------|--------|
-| Dispatch | 1 | ~400 |
-| Wait | 1 | ~400 |
-| Verify | 1 | ~500 |
-| Total | 3 | ~1,300 |
-
-Free model generated: N lines across M files
-If Claude wrote directly: ~X tokens
-Savings: ~Y% (~$Z.ZZ avoided)
-```
-
-Pricing: Claude Sonnet = $15/M tokens. Kimi/Gemini = $0 (free tier).
-
----
-
-## Anti-Patterns
-
-1. ❌ Multiple poll calls — `foreman wait` is ONE blocking call
-2. ❌ `git log --since` — use `--pre-head` hash comparison instead
-3. ❌ Relative paths — always absolute paths to task files and worktrees
-4. ❌ Dispatch to a dirty worktree — `foreman` will catch it, but don't ignore the error
-5. ❌ Skip `--issue` on `foreman wait` — without it, no auto-PR and no GitHub comment
-6. ❌ Read full files to verify — `foreman verify` shows only what matters
-7. ❌ Quit IDE while agent is running — check bridge `/health` first
-
-## Failure Reference
-
-| # | What happened | Fix in Foreman |
-|---|---------------|----------------|
-| 1 | Wrong branch dispatch | Dirty worktree guard + preflight (now in every command) |
-| 2 | Wait loop false trigger | `--pre-head` HEAD comparison |
-| 3 | Model switch wrong command | Use `foreman` CLI |
-| 4 | Multi-window dispatch to wrong project | `--new-window` + `--per-worktree` in queue |
-| 5 | Keystrokes hit editor not Cascade | `windsurf chat` CLI primary path |
-| 6 | Relative path resolved against wrong workspace | Absolute paths + `--add-file` |
-| 7 | Cascade input not focused | `windsurf chat` CLI avoids entirely |
-| 8 | `windsurf chat` opened wrong workspace | Absolute worktree path enforced |
-| 9 | Quit Windsurf while Cascade running | Timeout diagnosis checks bridge `/health` |
-| 10 | No GitHub record of what was dispatched | `--comment` posts dispatch + completion |
-| 11 | Commit missing `closes #N` | `foreman verify --issue` validates closing ref |
-| 12 | Tests passed locally but CI fails | `--run-tests CMD` runs suite before marking clean |
-
-## Bridge HTTP Endpoints (for manual inspection)
-
-```bash
-PORT=19854  # 19855=antigravity, 19856=cursor
-curl -s http://127.0.0.1:$PORT/status      # version, uptime
-curl -s http://127.0.0.1:$PORT/git         # branch, log
-curl -s http://127.0.0.1:$PORT/health      # alive, sinceLastSaveMs, diagnosticCount
-curl -s http://127.0.0.1:$PORT/files       # recent saves (last 20)
-curl -s http://127.0.0.1:$PORT/diagnostics # TypeScript errors
-```
+- `FIGHTER_PROTOCOL.md` — what Fighters read: intake, grill, tests-as-spec, done-signals.
+- `gotchas.md` — the free-memory layer: real label taxonomy + G1/G2/G3 + every captured failure.
+- `SPEC.md` — milestones (M0–M5) and the AI/evolution layer.

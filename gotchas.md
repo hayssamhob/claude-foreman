@@ -44,7 +44,9 @@ dispatch-then-auto-commit would have shipped a guide documenting labels that don
 - `weight:` `flyweight` · `middleweight` · `heavyweight`
 - `spine:` `adopt` · `build` · `harden` · `extend` · `expose`
 - `priority:` `high` · `medium` · `low` — pick-order for Fighters; Coach sets this
-- `agent:` `ollama` · `windsurf-kimi` · `claude` — routing; Coach assigns, Fighter claims
+- `agent:` `ollama` · `windsurf-kimi` · `antigravity` · `devin` · `claude` — routing; Coach assigns, Fighter claims
+- `fusion:` `on` — two Fighters work the same issue independently; Coach compares and merges the winner
+- `audit` — filed by the cheap-model audit tick (`scripts/audit-tick.ts`); enters the queue for Coach triage
 - `good first issue`
 
 > Editing labels? Update this list in the same PR — it's the source a Fighter reads.
