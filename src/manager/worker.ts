@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { concludeCheck, postMessage, postReview, setStatusLabel, splitRepo } from "../github.js";
 import { agentLabel, LABEL_TASK, statusLabel, taskBranch } from "../protocol/labels.js";
 import { serializeMessage } from "../protocol/messages.js";
+import { guardIssueBody } from "../guard/untrusted.js";
 import { notify } from "../notify.js";
 import { claudeAccountAgents, recordRateLimit, resetClock, checkCeilings } from "../agentlimits.js";
 import { RateLimitedError } from "../ratelimit.js";
@@ -92,7 +93,7 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
   const result = await runManager<DecomposeResult>(
     decomposePrompt({
       epicTitle: epic.title,
-      epicBody: epic.body ?? "",
+      epicBody: guardIssueBody(epic.body ?? "", `${job.repo}#${job.issue}`),
       agents: config.agents,
       repo: job.repo,
     }),
@@ -208,9 +209,9 @@ async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<v
     reviewPrompt({
       repo: job.repo,
       taskIssue: job.issue,
-      taskSpec: taskIssue.body ?? "",
+      taskSpec: guardIssueBody(taskIssue.body ?? "", `${job.repo}#${job.issue}`),
       prTitle: pr.title,
-      prBody: pr.body ?? "",
+      prBody: guardIssueBody(pr.body ?? "", `${job.repo}#pr-${job.pr}`),
       diff,
       round,
       openPoints: openPoints.map((p) => p.text),
