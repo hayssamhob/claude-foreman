@@ -54,10 +54,14 @@ export const devinLocalAdapter: FighterAdapter = {
       binToUse = "devin";
     }
 
+    const childEnv = { ...process.env };
+    delete childEnv.RUNNER_TRACKING_ID;
+
     const child = spawn(binToUse, ["--prompt-file", tmpFile, "-p", "--dangerously-skip-permissions"], {
       stdio: "ignore",
       detached: true,
       cwd: process.cwd(),
+      env: childEnv,
     });
     child.unref();
 
