@@ -13,6 +13,7 @@ import { sweepAutoMerge } from "./automerge.js";
 import { startJunior } from "./junior/runner.js";
 import { startWorker } from "./manager/worker.js";
 import { Store } from "./state/db.js";
+import { recoverFromCrash, rebuildCacheFromGitHub } from "./state/sync.js";
 
 const WORKER_INTERVAL_MS = 15_000;
 const SWEEP_INTERVAL_MS = 60_000;
@@ -22,6 +23,26 @@ const JUNIOR_INTERVAL_MS = 30_000;
 export default function app(probot: Probot, { addHandler }: Partial<ApplicationFunctionOptions> = {}): void {
   const store = new Store(config.dbPath);
   store.recoverStaleJobs();
+  // M1-10: crash recovery — reset stale claimed tasks whose lease has expired
+  const recovery = recoverFromCrash(store);
+  if (recovery.staleTasksReset > 0) {
+    probot.log.info(`crash recovery: reset ${recovery.staleTasksReset} stale task(s)`);
+  }
+  // M1-10: rebuild the SQLite cache from GitHub on startup (§5.7 — disposable cache)
+  // Runs asynchronously so the daemon starts serving webhooks immediately.
+  if (config.installationId) {
+    probot.auth(config.installationId)
+      .then(async (octokit) => {
+        const { data: repos } = await octokit.rest.apps.listReposAccessibleToInstallation({ per_page: 100 });
+        const repoNames = repos.repositories.map((r) => r.full_name);
+        const report = await rebuildCacheFromGitHub(store, octokit, repoNames);
+        probot.log.info(`cache rebuild: ${report.tasksRebuilt} tasks synced, ${report.tasksClosed} closed, ${report.prsLinked} PRs linked across ${report.reposScanned} repos`);
+        if (report.errors.length > 0) {
+          probot.log.warn(`cache rebuild errors: ${report.errors.join("; ")}`);
+        }
+      })
+      .catch((e) => probot.log.error(`cache rebuild failed: ${e}`));
+  }
 
   const auth = (installationId: number) => probot.auth(installationId);
   const log = (m: string) => probot.log.info(m);

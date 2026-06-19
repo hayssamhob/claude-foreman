@@ -109,7 +109,7 @@ describe("cursorAdapter", () => {
 
 describe("buildDevinLocalPrompt", () => {
   const ctx = { repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "Add the widget.", branch: "feat/issue-89-devin" };
-  it("embeds the grilled brief", () => expect(buildDevinLocalPrompt(ctx)).toContain("Add the widget."));
+  it("instructs to use gh cli to read the issue", () => expect(buildDevinLocalPrompt(ctx)).toContain("Use the 'gh' CLI to read the issue body"));
   it("instructs Closes #N", () => expect(buildDevinLocalPrompt(ctx)).toContain("Closes #89"));
   it("instructs the done-signal", () => expect(buildDevinLocalPrompt(ctx)).toContain("✅ #89 done"));
   it("names the repo and branch", () => {
@@ -124,12 +124,15 @@ describe("devinLocalAdapter", () => {
   it("has name devin-local", () => expect(devinLocalAdapter.name).toBe("devin-local"));
   it("returns dry-run when devin binary absent", async () => {
     const savedPath = process.env.PATH;
+    const savedBin = process.env.DEVIN_BIN;
     process.env.PATH = "/dev/null"; // garantit que execFileSync("devin") échoue
+    process.env.DEVIN_BIN = "/does/not/exist/devin";
     try {
       const r = await devinLocalAdapter.wake({ repo: "o/r", issueNumber: 89, agent: "devin-local", brief: "x", branch: "b" });
       expect(r.status).toBe("dry-run");
     } finally {
       process.env.PATH = savedPath;
+      process.env.DEVIN_BIN = savedBin;
     }
   });
 });

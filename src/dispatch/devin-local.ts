@@ -8,47 +8,63 @@
  *
  * Dry-run when the `devin` binary is not in PATH — never throws on a missing CLI.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import type { FighterAdapter, WakeContext, WakeResult } from "./adapter.js";
 
-/** Pure: assemble the Devin Local prompt — mirror of buildDevinPrompt in devin.ts. */
+/** Pure: assemble the lean Devin Local prompt. */
 export function buildDevinLocalPrompt(ctx: WakeContext): string {
-  return `${ctx.brief}
-
----
-Operating instructions (Foreman):
-- Repository: ${ctx.repo}. Work on a new branch \`${ctx.branch}\`.
-- Open a pull request whose body contains \`Closes #${ctx.issueNumber}\`.
-- When finished, comment on the PR exactly: \`@hayssamhob ✅ #${ctx.issueNumber} done — <one sentence>\`.
-- Stay strictly in scope. Do NOT touch auth, payments, secrets, database migrations, deletions, or spend limits; if the task seems to require any of these, stop and say so on the issue instead of proceeding.`;
+  return `Your task is Issue #${ctx.issueNumber} in ${ctx.repo}. Use the 'gh' CLI to read the issue body for the exact spec, work on a new branch '${ctx.branch}', open a PR with 'Closes #${ctx.issueNumber}', and comment '@hayssamhob ✅ #${ctx.issueNumber} done — <one sentence>' on the PR when finished. Stay strictly in scope (no auth, secrets, migrations, or spend limits).`;
 }
 
 export const devinLocalAdapter: FighterAdapter = {
   name: "devin-local",
   async wake(ctx: WakeContext): Promise<WakeResult> {
-    // Step 1 — binary check (dry-run if `devin` not in PATH).
+    // Step 1 — binary check (dry-run if devin not found).
+    const DEVIN_BIN = process.env.DEVIN_BIN || "/Applications/Devin.app/Contents/Resources/app/extensions/windsurf/devin/bin/devin";
     let devinAvailable = true;
     try {
-      execFileSync("devin", ["--version"], { stdio: "pipe" });
+      execFileSync(DEVIN_BIN, ["--version"], { stdio: "pipe" });
     } catch {
-      devinAvailable = false;
+      try {
+        execFileSync("devin", ["--version"], { stdio: "pipe" });
+      } catch {
+        devinAvailable = false;
+      }
     }
     if (!devinAvailable) {
       const prompt = buildDevinLocalPrompt(ctx);
       return {
         status: "dry-run",
-        detail: `devin CLI not found in PATH — would run: devin -p -- "<prompt>" for #${ctx.issueNumber}. Prompt preview: ${prompt.slice(0, 200)}…`,
+        detail: `devin CLI not found at ${DEVIN_BIN} or PATH — would run: devin -p for #${ctx.issueNumber}. Prompt preview: ${prompt.slice(0, 200)}…`,
       };
     }
 
-    // Step 2 — fire the CLI. Devin is autonomous; let errors propagate.
+    // Step 2 — fire the CLI asynchronously so we don't block the daemon.
     const prompt = buildDevinLocalPrompt(ctx);
-    execFileSync("devin", ["-p", "--", prompt], { stdio: "inherit" });
+    const tmpFile = join(tmpdir(), `devin-task-${ctx.issueNumber}-${Date.now()}.md`);
+    writeFileSync(tmpFile, prompt);
+
+    let binToUse = DEVIN_BIN;
+    try {
+      execFileSync(DEVIN_BIN, ["--version"], { stdio: "pipe" });
+    } catch {
+      binToUse = "devin";
+    }
+
+    const child = spawn(binToUse, ["--prompt-file", tmpFile, "-p", "--dangerously-skip-permissions"], {
+      stdio: "ignore",
+      detached: true,
+      cwd: process.cwd(),
+    });
+    child.unref();
 
     // Step 3 — return.
     return {
       status: "woken",
-      detail: `Devin Local session started for issue #${ctx.issueNumber} on branch ${ctx.branch}`,
+      detail: `Devin Local session started in background (PID ${child.pid}) for issue #${ctx.issueNumber} via temp file`,
     };
   },
 };
