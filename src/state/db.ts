@@ -442,6 +442,17 @@ export class Store {
     return row;
   }
 
+  getLedgerByAgent(sinceEpoch: number = 0): Array<{ agent: string | null; usd: number; tokens: number }> {
+    return this.db
+      .prepare(
+        `SELECT agent,
+                ifnull(sum(usd), 0) as usd,
+                ifnull(sum(tokens_in + tokens_out), 0) as tokens
+         FROM cost_ledger WHERE created_at >= ? GROUP BY agent`
+      )
+      .all(sinceEpoch) as Array<{ agent: string | null; usd: number; tokens: number }>;
+  }
+
   queueDepth(): number {
     const row = this.db.prepare(`SELECT count(*) as count FROM tasks WHERE status = 'queued'`).get() as { count: number };
     return row.count;

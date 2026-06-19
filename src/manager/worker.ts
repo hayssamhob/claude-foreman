@@ -14,6 +14,7 @@ import { assembleContextPacket, formatContextPacket } from "../context.js";
 import { routeOutcome } from "../referee/outcome.js";
 import { preFilterReview } from "../referee/prefilter.js";
 import { ciStateFor } from "../threads.js";
+import { costForecast } from "../cost-forecast.js";
 
 const MAX_DIFF_CHARS = 60_000;
 
@@ -162,6 +163,7 @@ export function buildTaskBody(spec: string, agent: string, epic: number, repo: s
 
 async function runReview(job: JobRow, store: Store, octokit: Octokit): Promise<void> {
   const { owner, repo } = splitRepo(job.repo);
+  console.log(costForecast(store.getLedgerByAgent(), config.maxUsd).summary);
   const task = store.getTask(job.repo, job.issue);
   if (!task || !job.pr || !job.head_sha) throw new Error(`review job ${job.id} missing task/pr/sha`);
 
