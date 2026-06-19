@@ -16,8 +16,8 @@ import { ollamaAdapter } from "../src/dispatch/ollama.js";
 import { cursorAdapter } from "../src/dispatch/cursor.js";
 
 const ADAPTERS: Record<string, FighterAdapter> = {
-  devin: devinAdapter,
-  "devin-local": devinLocalAdapter,
+  devin: devinLocalAdapter,
+  "devin-cloud": devinAdapter,
   ollama: ollamaAdapter,
   cursor: cursorAdapter,
   noop: noopAdapter,
