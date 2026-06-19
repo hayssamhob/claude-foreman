@@ -133,7 +133,7 @@ export async function rebuildFromGitHub(
       });
 
       for (const issue of issues) {
-        const labels = issue.labels.map((l) => l.name);
+        const labels = issue.labels.map((l) => typeof l === "string" ? l : l.name || "");
         const agent = findAgentLabel(labels);
         const status = findStatusLabel(labels);
         if (!agent || !status) continue;
