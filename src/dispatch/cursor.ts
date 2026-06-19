@@ -63,8 +63,8 @@ export const cursorAdapter: FighterAdapter = {
       execFileSync("git", ["checkout", ctx.branch], { stdio: "inherit" });
     }
 
-    // Step 5 — git: commit and push.
-    execFileSync("git", ["add", "-A"], { stdio: "inherit" });
+    // Step 5 — git: commit and push. Exclude .cursor/ config dirs from staging.
+    execFileSync("git", ["add", "-A", "--", ".", ":!.cursor"], { stdio: "inherit" });
     execFileSync(
       "git",
       ["commit", "-m", `feat(#${ctx.issueNumber}): implement issue #${ctx.issueNumber}\n\n[cursor agent]`],
