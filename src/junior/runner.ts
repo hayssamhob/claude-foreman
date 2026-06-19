@@ -6,6 +6,7 @@ import { extractJson } from "../manager/runner.js";
 import { claudeAccountAgents, recordRateLimit, resetClock, checkCeilings } from "../agentlimits.js";
 import { parseRateLimit, RateLimitedError } from "../ratelimit.js";
 import { notify } from "../notify.js";
+import { scanOutput } from "../guard/secretscan.js";
 import type { Octokit } from "../octokit.js";
 import { taskBranch } from "../protocol/labels.js";
 import { serializeMessage } from "../protocol/messages.js";
@@ -378,7 +379,11 @@ async function runJuniorCmd(prompt: string, cwd: string, onMetrics?: (usd: numbe
     child.stdin.end();
   });
   try {
-    return extractJson<JuniorReport>(stdout, onMetrics);
+    const scan = scanOutput(stdout);
+    if (!scan.clean) {
+      console.warn(`secret-scan: ${scan.findings.join("; ")} — redacted from junior output`);
+    }
+    return extractJson<JuniorReport>(scan.redacted, onMetrics);
   } catch {
     // A session that worked but fumbled the report format is still useful —
     // the diff is the real deliverable.

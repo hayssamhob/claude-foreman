@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { config } from "../config.js";
 import { parseRateLimit, RateLimitedError } from "../ratelimit.js";
+import { scanOutput } from "../guard/secretscan.js";
 
 /**
  * Invoke the manager model (headless Claude Code by default) with a prompt on
@@ -40,7 +41,11 @@ export async function runManager<T>(prompt: string, onMetrics?: (usd: number, in
     child.stdin.end();
   });
   try {
-    return extractJson<T>(stdout, onMetrics);
+    const scan = scanOutput(stdout);
+    if (!scan.clean) {
+      console.warn(`secret-scan: ${scan.findings.join("; ")} — redacted from manager output`);
+    }
+    return extractJson<T>(scan.redacted, onMetrics);
   } catch (e) {
     throw new Error(
       `manager output not parseable as JSON (${e}); len=${stdout.length}; tail: ${stdout.slice(-300)}`
