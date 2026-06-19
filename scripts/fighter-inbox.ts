@@ -33,7 +33,13 @@ if (!repo) {
   repo = repoInfo.nameWithOwner;
 }
 
-const meInfo = runGh(`api user`);
+let meInfo;
+try {
+  meInfo = runGh(`api user`);
+} catch (err) {
+  console.error("Not authenticated — run `gh auth login` first");
+  process.exit(1);
+}
 const me = meInfo.login;
 
 // Fetch labeled issues/PRs
