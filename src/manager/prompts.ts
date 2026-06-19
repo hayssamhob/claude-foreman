@@ -29,9 +29,17 @@ Scope each task so a cheap Fighter cannot misalign:
 - Each spec is handed to the Fighter verbatim: include acceptance criteria, the exact files in scope,
   real signatures/types copied from the codebase (never invented — see G1 in gotchas.md), and an
   explicit "do not touch" list.
-- Available agents and their routing names: ${args.agents.join(", ")}. Assign each task to the
-  best-suited agent. Never route auth / payments / secrets / DB-migration / delete / spend work to a
-  Fighter — that stays with the Coach.
+- **Tier routing — assign to the cheapest tier that can do the job reliably:**
+
+  | Tier | Fighters | Use when |
+  |---|---|---|
+  | cheap / free | ollama | Mechanical, low-risk, well-scoped — copy/rename changes, scaffolding, adding tests |
+  | frontier | devin, cursor, antigravity | Hard, ambiguous, large-context, or higher-stakes work |
+  | fusion | two frontier agents + \`fusion:on\` label | Critical — worth two independent attempts and a comparative review |
+
+  Available agents and their routing names: ${args.agents.join(", ")}. Assign each task to the
+  cheapest tier that can reliably complete it. Never route auth / payments / secrets /
+  DB-migration / delete / spend work to a Fighter — that stays with the Coach.
 
 EPIC TITLE: ${args.epicTitle}
 
