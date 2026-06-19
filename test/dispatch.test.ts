@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { parseAgent, slugify, branchFor, noopAdapter } from "../src/dispatch/adapter.js";
+import { parseAgent, slugify, branchFor, noopAdapter, isExcludedScope } from "../src/dispatch/adapter.js";
 import { buildDevinPrompt, devinAdapter } from "../src/dispatch/devin.js";
 import { buildOllamaPrompt, safePath, ollamaAdapter } from "../src/dispatch/ollama.js";
-import { buildCursorPrompt, CURSOR_EXCLUDED_TERMS, cursorAdapter } from "../src/dispatch/cursor.js";
+import { buildCursorPrompt, cursorAdapter } from "../src/dispatch/cursor.js";
 import { buildDevinLocalPrompt, devinLocalAdapter } from "../src/dispatch/devin-local.js";
 
 describe("parseAgent", () => {
@@ -81,10 +81,11 @@ describe("buildCursorPrompt", () => {
   it("references the issue number", () => expect(buildCursorPrompt(ctx)).toContain("#89"));
 });
 
-describe("CURSOR_EXCLUDED_TERMS", () => {
-  it("matches auth", () => expect(CURSOR_EXCLUDED_TERMS.test("harden the auth flow")).toBe(true));
-  it("matches payment", () => expect(CURSOR_EXCLUDED_TERMS.test("add payment processing")).toBe(true));
-  it("does not match safe briefs", () => expect(CURSOR_EXCLUDED_TERMS.test("add a help text tooltip")).toBe(false));
+describe("isExcludedScope", () => {
+  it("matches auth", () => expect(isExcludedScope("harden the auth flow")).toBe("auth"));
+  it("matches payment", () => expect(isExcludedScope("add payment processing")).toBe("payment"));
+  it("does not match safe briefs", () => expect(isExcludedScope("add a help text tooltip")).toBeNull());
+  it("is case-insensitive", () => expect(isExcludedScope("DROP TABLE users")).toBe("DROP"));
 });
 
 describe("cursorAdapter", () => {
