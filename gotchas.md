@@ -190,3 +190,27 @@ each individual point.
 4. **Before merging, verify all threads are resolved** (or explicitly waived with a comment
    explaining why). GitHub shows unresolved threads on the PR page and blocks the "Resolve
    conversation" button until the author acts.
+
+---
+
+## G6 — GitHub Actions Runner environment kills detached local IDE agents
+
+**Symptom.** A local CLI agent adapter (e.g. `agent:devin-local`, `agent:cursor`, or `agent:windsurf`) spawned from a GitHub Action runner fails silently, loops, or exits with "Login canceled" / "Bad credentials".
+When manually run from the user's shell it works perfectly, but the Action runner background spawn fails.
+
+**First seen.** 2026-06-19 (M6-4b) — `devin-local` adapter spawned `devin -p` which crashed with "Login canceled" and then "GH_TOKEN invalid".
+
+**Cause.** The GitHub Actions runner modifies the execution environment toxically for desktop/IDE CLIs:
+1. **HOME Override**: The runner sets `HOME` to `_work/_temp`. The IDE CLI cannot find its credentials, configurations, or extensions in `~/.local/share/` or `~/.config/` because it's looking in the temp dir instead of the real user home.
+2. **Ephemeral Token**: The runner injects an ephemeral `GITHUB_TOKEN` which overrides user PATs. Because the IDE CLI is spawned with `detached: true`, it survives after the Action completes, at which point the ephemeral token expires, leading to immediate 401s when the agent tries to push or create a PR.
+3. **Amputated PATH**: The runner strips `/usr/local/bin`, `/opt/homebrew/bin`, etc. The agent cannot find `gh` or `git`.
+4. **Process Tree Kill**: The runner tracks processes using `RUNNER_TRACKING_ID` and kills them after the step.
+
+**Rule.**
+1. **Always reconstruct the child environment** for detached local IDE background spawns:
+   - Restore `childEnv.HOME = os.homedir()`
+   - Inject the persistent user PAT (e.g. from `~/.zshrc` or `gh auth token` fallback) to overwrite `GH_TOKEN` and `GITHUB_TOKEN`.
+   - Augment `childEnv.PATH` with common `/bin` directories.
+   - Delete `childEnv.RUNNER_TRACKING_ID`.
+2. **Never rely on the Actions Runner `GITHUB_TOKEN`** for background processes that outlive the run.
+3. **Applies to ALL VS Code-based CLIs**: This is not just a Devin problem. Cursor, Windsurf, Cline, and VS Code CLI all depend on `HOME` to resolve extensions and user settings. A pure runner environment will treat them as fresh, unauthenticated installs.
