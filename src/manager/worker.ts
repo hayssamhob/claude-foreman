@@ -2,7 +2,7 @@ import type { Octokit } from "../octokit.js";
 import { config } from "../config.js";
 import { concludeCheck, postMessage, postReview, setStatusLabel, splitRepo } from "../github.js";
 import { agentLabel, LABEL_TASK, statusLabel, taskBranch } from "../protocol/labels.js";
-import { serializeMessage } from "../protocol/messages.js";
+import { serializeMessage, type LoopContract } from "../protocol/messages.js";
 import { guardIssueBody } from "../guard/untrusted.js";
 import { notify } from "../notify.js";
 import { claudeAccountAgents, recordRateLimit, resetClock, checkCeilings } from "../agentlimits.js";
@@ -150,12 +150,25 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
   });
 }
 
-export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = [], contextPacket = "", augmentOnly = false): string {
+export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = [], contextPacket = "", augmentOnly = false, loopContract?: LoopContract): string {
   let human = `> Parent epic: #${epic} · Assigned to: \`${agent}\` · Work on branch \`${taskBranch(agent, taskIssue || 0)}\` and open a PR containing \`Closes #${taskIssue || "<this issue>"}\`.\n\n${spec}`;
   
   if (Array.isArray(doneContract) && doneContract.length > 0) {
     const contractList = doneContract.map((c, i) => `${i + 1}. ${c}`).join("\n");
     human += `\n\n## Done-contract\n${contractList}`;
+  }
+
+  if (loopContract) {
+    human += `\n\n## Loop Contract\n`;
+    human += `- **Trigger**: ${loopContract.trigger}\n`;
+    human += `- **Scope**: ${loopContract.scope.join(", ")}\n`;
+    human += `- **Action**: ${loopContract.action}\n`;
+    const budgetStr = [];
+    if (loopContract.budget.maxUsd) budgetStr.push(`$${loopContract.budget.maxUsd}`);
+    if (loopContract.budget.maxTokens) budgetStr.push(`${loopContract.budget.maxTokens} tokens`);
+    human += `- **Budget**: ${budgetStr.length > 0 ? budgetStr.join(" / ") : "none"}\n`;
+    human += `- **Stop**: ${loopContract.stop}\n`;
+    human += `- **Report**: ${loopContract.report}`;
   }
 
   if (augmentOnly) {

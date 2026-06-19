@@ -51,3 +51,40 @@ export function parseMessage(body: string | null | undefined): AgentMessage | nu
     return null;
   }
 }
+
+export interface LoopContract {
+  trigger: string;       // what event starts the work, e.g. "issues.labeled agent:antigravity"
+  scope: string[];       // file paths or glob patterns the Fighter may touch, e.g. ["src/**", "test/**"]
+  action: string;        // what the task does, e.g. "Add LoopContract schema to messages.ts"
+  budget: {
+    maxTokens?: number;  // optional token ceiling for this assignment
+    maxUsd?: number;     // optional cost ceiling in USD
+  };
+  stop: string;          // when work is done, e.g. "npm test passes, PR opened with done-signal"
+  report: string;        // done-signal format, e.g. "@hayssamhob ✅ #N done — <one sentence>"
+}
+
+/**
+ * Validate a LoopContract from untrusted input. Returns null if malformed.
+ * Rules:
+ *   trigger — non-empty string
+ *   scope   — non-empty array of strings (at least one element)
+ *   action  — non-empty string
+ *   budget  — object (maxTokens / maxUsd optional; if present, must be number > 0)
+ *   stop    — non-empty string
+ *   report  — non-empty string
+ */
+export function validateLoopContract(value: unknown): LoopContract | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const c = value as Record<string, unknown>;
+  if (typeof c.trigger !== "string" || !c.trigger.trim()) return null;
+  if (!Array.isArray(c.scope) || c.scope.length === 0 || !c.scope.every((s) => typeof s === "string" && s.trim())) return null;
+  if (typeof c.action !== "string" || !c.action.trim()) return null;
+  if (typeof c.budget !== "object" || c.budget === null || Array.isArray(c.budget)) return null;
+  const b = c.budget as Record<string, unknown>;
+  if (b.maxTokens !== undefined && (typeof b.maxTokens !== "number" || b.maxTokens <= 0)) return null;
+  if (b.maxUsd !== undefined && (typeof b.maxUsd !== "number" || b.maxUsd <= 0)) return null;
+  if (typeof c.stop !== "string" || !c.stop.trim()) return null;
+  if (typeof c.report !== "string" || !c.report.trim()) return null;
+  return c as unknown as LoopContract;
+}
