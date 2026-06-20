@@ -18,7 +18,7 @@ jobs:
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -40,7 +40,7 @@ jobs:
     # Scan the PR diff for planted credentials before merge. Zero LLM cost — pure regex
     # via src/guard/secretscan.ts. Blocks the PR if any secret pattern is found.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
