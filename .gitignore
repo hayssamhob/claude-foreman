@@ -26,6 +26,9 @@ dist/
 *.sqlite3
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
+data/
 .env
 private-key.pem
 *.pem
