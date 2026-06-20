@@ -112,6 +112,18 @@ export const config = {
   juniorEffort,
   juniorTimeoutMinutes: int("JUNIOR_TIMEOUT_MINUTES", 30),
   workspacesDir: process.env.WORKSPACES_DIR ?? "./data/workspaces",
+  /**
+   * Which CoachDriver to use. Derived from COACH_DRIVER env var.
+   * - "claude"  → coach-claude (reference, default)
+   * - "codex"   → coach-codex (OpenAI Codex CLI / ChatGPT)
+   * - "gemini"  → coach-gemini (Google Gemini CLI)
+   * Unlisted values fall back to "claude".
+   */
+  coachDriver: ((): "claude" | "codex" | "gemini" => {
+    const v = (process.env.COACH_DRIVER ?? "claude").trim().toLowerCase();
+    if (v === "codex" || v === "gemini") return v;
+    return "claude";
+  })(),
 };
 
 export type Config = typeof config;
