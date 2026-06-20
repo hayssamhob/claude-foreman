@@ -54,7 +54,12 @@ Set "augmentOnly": true for tasks whose artifact cannot be verified by tests, a 
 Set "augmentOnly": false for all code, tests, and scripts that have an execution oracle.
 
 Respond with ONLY a JSON object, no prose, in this exact shape:
-{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec — interfaces fixed, zero open decisions>", "doneContract": ["<machine-checkable AC>", ...], "augmentOnly": <true|false>}]}`;
+If the epic is clear and unambiguous:
+{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec — interfaces fixed, zero open decisions>", "doneContract": ["<machine-checkable AC>", ...], "augmentOnly": <true|false>}]}
+
+If the epic is ambiguous, underspecified, or requires owner input before you can confidently fix the interfaces and write the specs:
+{"questions": ["<clarifying question 1>", "<clarifying question 2>"]}
+`;
 }
 
 export function reviewPrompt(args: {

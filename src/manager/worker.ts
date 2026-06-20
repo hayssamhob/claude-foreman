@@ -23,7 +23,8 @@ export const AUGMENT_ONLY_SENTINEL = "<!-- augment-only: true -->";
 export type AuthFn = (installationId: number) => Promise<Octokit>;
 
 interface DecomposeResult {
-  tasks: { title: string; agent: string; spec: string; doneContract?: string[]; augmentOnly?: boolean }[];
+  tasks?: { title: string; agent: string; spec: string; doneContract?: string[]; augmentOnly?: boolean }[];
+  questions?: string[];
 }
 export interface ReviewResult {
   verdict: "approve" | "request_changes";
@@ -107,8 +108,19 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
     }),
     (usd, inT, outT) => store.recordSpend(job.repo, job.issue, config.managerName, "decompose", usd, inT, outT)
   );
+  if (Array.isArray(result.questions) && result.questions.length > 0) {
+    const list = result.questions.map((q) => `- ${q}`).join("\n");
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: job.issue,
+      body: `🤔 **Coach clarification needed**\n\nThe goal is ambiguous or underspecified. Please clarify before I can decompose it into tasks:\n\n${list}\n\n*Reply to this issue and include \`/decompose\` in your comment to try again.*`,
+    });
+    return;
+  }
+
   if (!Array.isArray(result.tasks) || result.tasks.length === 0) {
-    throw new Error("manager returned no tasks");
+    throw new Error("manager returned no tasks and no questions");
   }
 
   const packet = await assembleContextPacket(octokit, job.repo);
