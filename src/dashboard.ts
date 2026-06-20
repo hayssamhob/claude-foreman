@@ -2,6 +2,7 @@ import { config } from "./config.js";
 import type { CommentRow, JobRow, RevisionPointRow, Store, TaskRow } from "./state/db.js";
 import { taskBranch } from "./protocol/labels.js";
 import type { BranchState, CiState, ThreadOverview, ThreadSummary } from "./threads.js";
+import type { TrustTier } from "./referee/readiness.js";
 
 const NO_THREADS: ThreadOverview = { open: [], resolvedCount: 0, total: 0 };
 
@@ -439,6 +440,89 @@ function projectCard(repo: string, tasks: TaskRow[], store: Store, threadMap: Th
   </section>`;
 }
 
+// ---------------------------------------------------------------------------
+// Cost panel — spend breakdown from the SQLite cost_ledger
+// ---------------------------------------------------------------------------
+
+function fmtUsd(cents: number): string {
+  if (cents === 0) return "$0.00";
+  return `$${(cents).toFixed(2)}`;
+}
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+export function costPanel(store: Store): string {
+  const totals = store.getLedgerTotals();
+  const byAgent = store.getLedgerByAgent();
+
+  if (totals.usd === 0 && totals.tokens === 0) {
+    return `<section class="card cost-panel">
+      <h2>💰 Cost</h2>
+      <p class="point-meta">No spend recorded yet.</p>
+    </section>`;
+  }
+
+  const agentRows = byAgent
+    .filter((a) => a.agent)
+    .map((a) => {
+      const pct = totals.usd > 0 ? Math.round((a.usd / totals.usd) * 100) : 0;
+      return `<tr>
+        <td>${esc(agentName(a.agent!))}</td>
+        <td class="num">${fmtUsd(a.usd)}</td>
+        <td class="num">${fmtTokens(a.tokens)}</td>
+        <td class="num">${pct}%</td>
+      </tr>`;
+    })
+    .join("");
+
+  const ceiling = config.maxUsd !== undefined ? `<div class="point-meta">Budget ceiling: ${fmtUsd(config.maxUsd)}</div>` : "";
+
+  return `<section class="card cost-panel">
+    <h2>💰 Cost</h2>
+    <div class="cost-total">Total spend: <strong>${fmtUsd(totals.usd)}</strong> · ${fmtTokens(totals.tokens)} tokens</div>
+    ${ceiling}
+    ${agentRows ? `<table class="cost-table">
+      <thead><tr><th>Agent</th><th class="num">Spend</th><th class="num">Tokens</th><th class="num">Share</th></tr></thead>
+      <tbody>${agentRows}</tbody>
+    </table>` : ""}
+  </section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Trust-tier panel — current governance level for the fleet
+// ---------------------------------------------------------------------------
+
+const TIER_DESCRIPTIONS: Record<TrustTier, { label: string; detail: string; color: string }> = {
+  L1: { label: "L1 — report only", detail: "Agents open PRs and comment, but never merge. Every change needs your approval.", color: "#d29922" },
+  L2: { label: "L2 — patch only", detail: "Low-risk patches auto-merge when CI passes. Higher-risk work still needs you.", color: "#316dca" },
+  L3: { label: "L3 — auto-merge", detail: "The referee enforces required checks under branch protection. Unattended operation.", color: "#2da44e" },
+};
+
+export function trustTierPanel(tier: TrustTier): string {
+  const info = TIER_DESCRIPTIONS[tier];
+  return `<section class="card trust-panel">
+    <h2>🛡️ Trust tier</h2>
+    <div class="trust-badge" style="border-color:${info.color}; color:${info.color}">
+      ${esc(info.label)}
+    </div>
+    <p class="trust-detail">${esc(info.detail)}</p>
+    <div class="trust-ladder">
+      ${(["L1", "L2", "L3"] as TrustTier[]).map((t) => {
+        const d = TIER_DESCRIPTIONS[t];
+        const active = t === tier;
+        return `<div class="trust-step ${active ? "trust-active" : ""}" style="${active ? `border-color:${d.color}` : ""}">
+          <strong>${esc(d.label)}</strong>
+          <span class="point-meta">${esc(d.detail)}</span>
+        </div>`;
+      }).join("")}
+    </div>
+  </section>`;
+}
+
 /** Account-rotation panel: save a "where we left off" note + copy the resume bundle. */
 function handoffPanel(store: Store): string {
   const note = store.latestHandoffNote();
@@ -478,7 +562,8 @@ export function renderDashboard(
   repos: RepoOption[],
   notice?: string,
   threadMap: ThreadMap = {},
-  repoBranches: RepoBranches = {}
+  repoBranches: RepoBranches = {},
+  trustTier: TrustTier = "L1"
 ): string {
   const tasks = store.listTasks();
   const jobs = store.recentJobs(10);
@@ -579,6 +664,15 @@ export function renderDashboard(
   button { margin-top: 0.9rem; font: inherit; font-weight: 600; padding: 0.55rem 1.4rem; border-radius: 8px; border: none; background: #2da44e; color: white; cursor: pointer; }
   button:hover { filter: brightness(1.08); }
   .notice { border: 1px solid #2da44e88; background: #2da44e15; border-radius: 8px; padding: 0.7rem 1rem; }
+  .cost-panel .cost-total { font-size: 1rem; margin: 0.3rem 0 0.5rem; }
+  .cost-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+  .cost-table th, .cost-table td { padding: 0.3rem 0.6rem; text-align: left; border-bottom: 1px solid #8882; }
+  .cost-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .trust-panel .trust-badge { display: inline-block; font-weight: 700; font-size: 1rem; border: 2px solid; border-radius: 8px; padding: 0.25rem 0.8rem; margin: 0.3rem 0 0.4rem; }
+  .trust-detail { font-size: 0.88rem; margin: 0 0 0.6rem; }
+  .trust-ladder { display: flex; flex-direction: column; gap: 0.35rem; }
+  .trust-step { border: 1px solid #8883; border-radius: 8px; padding: 0.35rem 0.7rem; opacity: 0.55; }
+  .trust-step.trust-active { opacity: 1; border-width: 2px; background: #8880; }
   details { margin-top: 2.5rem; font-size: 0.85rem; opacity: 0.75; }
   footer { margin-top: 1.5rem; font-size: 0.78rem; opacity: 0.5; }
 </style>
@@ -589,6 +683,8 @@ export function renderDashboard(
   ${notice ? `<p class="notice">${esc(notice)}</p>` : ""}
   ${attentionHtml}
   ${projects}
+  ${costPanel(store)}
+  ${trustTierPanel(trustTier)}
   <section class="card">
     <h2>🚀 Request new work</h2>
     <form method="post" action="/dashboard/new-work">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickupVerdict, getEscalations } from "../src/dashboard.js";
+import { pickupVerdict, getEscalations, costPanel, trustTierPanel } from "../src/dashboard.js";
 import { Store } from "../src/state/db.js";
 import type { CommentRow, JobRow, TaskRow } from "../src/state/db.js";
 
@@ -95,5 +95,61 @@ describe("getEscalations", () => {
   it("returns empty for healthy claimed task with fresh branch", () => {
     const t = task({ status: "claimed", updated_at: NOW - 5 * MIN });
     expect(getEscalations([t], noJobs, store, emptyMap, NOW)).toHaveLength(0);
+  });
+});
+
+describe("costPanel", () => {
+  it("shows 'no spend' when the ledger is empty", () => {
+    const store = new Store(":memory:");
+    const html = costPanel(store);
+    expect(html).toContain("No spend recorded yet");
+    expect(html).toContain("cost-panel");
+  });
+
+  it("renders total spend and per-agent breakdown", () => {
+    const store = new Store(":memory:");
+    store.recordSpend("o/r", 1, "kimi", "review", 0.14, 1200, 800);
+    store.recordSpend("o/r", 2, "ollama", "review", 0.00, 500, 300);
+    const html = costPanel(store);
+    expect(html).toContain("$0.14");
+    expect(html).toContain("Kimi");
+    expect(html).toContain("Ollama");
+    expect(html).toContain("cost-table");
+  });
+
+  it("renders token counts in human-readable format", () => {
+    const store = new Store(":memory:");
+    store.recordSpend("o/r", 1, "kimi", "review", 1.50, 500_000, 500_000);
+    const html = costPanel(store);
+    expect(html).toContain("1.0M");
+  });
+});
+
+describe("trustTierPanel", () => {
+  it("renders the L1 tier as active", () => {
+    const html = trustTierPanel("L1");
+    expect(html).toContain("trust-panel");
+    expect(html).toContain("L1");
+    expect(html).toContain("report only");
+    expect(html).toContain("trust-active");
+  });
+
+  it("renders the L2 tier as active", () => {
+    const html = trustTierPanel("L2");
+    expect(html).toContain("L2");
+    expect(html).toContain("patch only");
+  });
+
+  it("renders the L3 tier as active", () => {
+    const html = trustTierPanel("L3");
+    expect(html).toContain("L3");
+    expect(html).toContain("auto-merge");
+  });
+
+  it("shows all three tiers in the ladder", () => {
+    const html = trustTierPanel("L2");
+    expect(html).toContain("L1");
+    expect(html).toContain("L2");
+    expect(html).toContain("L3");
   });
 });
