@@ -249,3 +249,17 @@ signal comment.
    - [ ] Build passes (`npm run build`)
    - [ ] PR opened with `Closes #N` in body
    - [ ] **Done-signal comment posted on the PR** ← DON'T FORGET THIS
+
+---
+
+## G8 — Fighter runs `npm test` but forgets `npm run build` (tsc) before opening PR
+
+**Symptom.** A Fighter opens a PR and proudly declares "445 tests green". But when the Coach loop runs the ORACLE check (`npm run build && npm test`), the build step fails with a TypeScript compiler error (e.g., `TS2339: Property X does not exist on type Y`). The PR is bounced and closed.
+
+**First seen.** 2026-06-20 (M3-2) — Devin fixed an issue that caused `npm test` to pass, but the fix had a type error. Since Vitest does not type-check by default, the Fighter missed the error and opened the PR.
+
+**Cause.** Vitest (and Jest) strips TypeScript types without checking them. `npm test` only verifies runtime logic. `npm run build` runs `tsc --noEmit` to verify type correctness. Both must pass before a PR is considered done.
+
+**Rule.**
+1. **Always run `npm run build`** alongside `npm test` to verify your changes. If `npm run build` fails, your code is broken and will be bounced.
+2. **Do not open a PR** until both commands pass cleanly without errors.
