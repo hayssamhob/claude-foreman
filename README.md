@@ -68,6 +68,22 @@ npm run build
 # Extensions → ··· → Install from VSIX → pick out/foreman-bridge-*.vsix
 ```
 
+## Devin Desktop LLM Gateway (Proxy)
+
+`claude-foreman` now includes a built-in proxy that turns the **Devin Desktop App** into a local, OpenAI-compatible API. This allows you to use Devin's powerful free models (like `kimi-k2.7`, `glm-5.2`, `swe-1.6`) directly inside Hermes, Antigravity, or any other API client—without API rate limits!
+
+To start the proxy:
+```bash
+npm run devin-proxy
+```
+The server will run on `http://localhost:3001/v1`. 
+
+To configure Hermes to use it:
+1. Run `hermes model`
+2. Select `custom (direct API)`
+3. Set the base URL to `http://localhost:3001/v1`
+4. Pick your desired model from the menu.
+
 ## Quick Start
 
 Once installed, open Claude Code in any project and run:
