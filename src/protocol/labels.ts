@@ -83,5 +83,8 @@ export function labelDefinitions(agents: string[], holdLabel: string): LabelDef[
     { name: "role:coach", color: "fef2c0", description: "Acting as Coach (plan/judge)" },
     { name: "role:fighter", color: "fef2c0", description: "Acting as Fighter (execute)" },
     { name: "role:referee", color: "fef2c0", description: "Acting as Referee (gate)" },
+    { name: "role:panel", color: "fef2c0", description: "Acting as panel member" },
+    { name: "role:judge", color: "fef2c0", description: "Acting as judge (test-grounded)" },
+    { name: "role:writer", color: "fef2c0", description: "Acting as writer (synthesizer)" },
   ];
 }
