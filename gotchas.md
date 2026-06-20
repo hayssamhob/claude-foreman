@@ -214,3 +214,38 @@ When manually run from the user's shell it works perfectly, but the Action runne
    - Delete `childEnv.RUNNER_TRACKING_ID`.
 2. **Never rely on the Actions Runner `GITHUB_TOKEN`** for background processes that outlive the run.
 3. **Applies to ALL VS Code-based CLIs**: This is not just a Devin problem. Cursor, Windsurf, Cline, and VS Code CLI all depend on `HOME` to resolve extensions and user settings. A pure runner environment will treat them as fresh, unauthenticated installs.
+
+## G7 — Fighter opens PR but forgets the done-signal comment
+
+**Symptom.** A Fighter opens a PR with `Closes #N` in the body, CI goes green, but the
+Coach loop (Phase 1) never triggers automerge. The PR sits open indefinitely. The Coach
+reports "he hasn't posted his ✅ signal yet."
+
+**First seen.** 2026-06-19 (M0-6, M3-2, M4-2) — Devin opened PRs #140, #141, #142 with
+correct bodies and green CI, but forgot to comment `@hayssamhob ✅ #N done — <sentence>`
+on each PR. The Coach loop observed the PRs but could not proceed to automerge because
+the done-contract signal was missing.
+
+**Cause.** The done-signal comment (`@hayssamhob ✅ #N done — <one sentence>`) is the
+**Coach's trigger** to start the review + automerge flow. Without it, the Coach loop
+sees the PR as "work in progress" — not "work complete." The Fighter treated PR
+creation as the final step, but the done-contract requires **both** the PR **and** the
+signal comment.
+
+**Rule.**
+1. **The done-signal is mandatory and must be posted immediately after opening the PR.**
+   It is not optional. It is not a "nice to have." It is the done-contract — the Coach
+   gates on it.
+2. **Post the signal as a PR comment, not an issue comment.** The Coach scans PR comments
+   for the pattern `@hayssamhob ✅ #N done —`.
+3. **The signal format is exact:** `@hayssamhob ✅ #N done — <one sentence>` where N is
+   the issue number and the sentence is a brief summary of what was delivered.
+4. **Batch opening PRs? Post all signals in the same batch.** If you open 3 PRs in a
+   row, post 3 done-signals in the same row. Don't leave them for later.
+5. **Checklist for every PR:**
+   - [ ] Branch created
+   - [ ] Code written
+   - [ ] Tests pass (`npm test`)
+   - [ ] Build passes (`npm run build`)
+   - [ ] PR opened with `Closes #N` in body
+   - [ ] **Done-signal comment posted on the PR** ← DON'T FORGET THIS
