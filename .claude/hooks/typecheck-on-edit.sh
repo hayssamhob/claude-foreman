@@ -19,7 +19,7 @@ case "$file_path" in
     # Run a typecheck. If it fails, warn but don't block (exit 0)
     # — the real gate is `npm run build` in the done-contract.
     # Blocking on every edit would make iterative work painful.
-    if ! npx tsc --noEmit 2>/dev/null; then
+    if ! npx tsc --noEmit >/dev/null 2>&1; then
       echo "⚠  tsc --noEmit has errors after editing $file_path" >&2
       echo "   Run 'npm run build' to see details. Fix before opening a PR." >&2
     fi

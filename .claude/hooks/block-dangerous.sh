@@ -20,7 +20,7 @@ blocked_patterns=(
   'rm -rf ~'
   'rm -rf \*'
   'git push --force'
-  'git push -f '
+  'git push -f([[:space:]]|$)'
   'git push origin main'
   'git checkout main'
   'git rebase -i'
