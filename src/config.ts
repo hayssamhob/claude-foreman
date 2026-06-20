@@ -85,6 +85,15 @@ export const config = {
    */
   autoMerge: process.env.AUTO_MERGE !== "0",
   holdLabel: "hold",
+  /**
+   * Trust ladder tier (M3-2). Ships at L1 (report-only). L2/L3 require a
+   * manual opt-in after `foreman audit` — the loop never promotes itself.
+   */
+  defaultTrustTier: ((): "L1" | "L2" | "L3" => {
+    const v = (process.env.DEFAULT_TRUST_TIER ?? "L1").trim().toUpperCase();
+    if (v === "L2" || v === "L3") return v;
+    return "L1";
+  })(),
   /** ntfy.sh topic for push notifications; empty = notifications off. */
   ntfyTopic: process.env.NTFY_TOPIC ?? "",
   ntfyServer: process.env.NTFY_SERVER ?? "https://ntfy.sh",
