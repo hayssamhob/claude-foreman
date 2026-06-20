@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { computeReadiness, formatReadinessReport, type RepoSignals } from "../src/referee/readiness.js";
+import { computeReadiness, formatReadinessReport, readReadiness, type RepoSignals } from "../src/referee/readiness.js";
+import type { Octokit } from "../src/octokit.js";
 
 const SIGNALS_NO_TESTS: RepoSignals = {
   hasTests: false, hasCI: false, hasBranchProtection: false,
@@ -119,5 +120,73 @@ describe("formatReadinessReport", () => {
     expect(report).toContain("Signals");
     expect(report).toContain("Branch protection");
     expect(report).toContain("CODEOWNERS");
+  });
+});
+
+function mockOctokit(
+  tree: Array<{ type: string; path: string }>,
+  protection?: { required_status_checks?: { contexts?: string[]; checks?: Array<{ context: string }> } } | null
+): Octokit {
+  return {
+    rest: {
+      repos: {
+        get: async () => ({ data: { default_branch: "main" } }),
+        getBranchProtection: async () => {
+          if (protection === undefined) throw new Error("no admin scope");
+          return { data: protection };
+        },
+      },
+      git: {
+        getTree: async () => ({ data: { tree } }),
+      },
+    },
+  } as unknown as Octokit;
+}
+
+describe("readReadiness", () => {
+  it("assigns L2 when tests + CI exist without branch protection", async () => {
+    const octokit = mockOctokit([
+      { type: "blob", path: "src/foo.test.ts" },
+      { type: "blob", path: ".github/workflows/ci.yml" },
+    ]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.tier).toBe("L2");
+    expect(result.signals.hasTests).toBe(true);
+    expect(result.signals.hasCI).toBe(true);
+    expect(result.signals.hasBranchProtection).toBe(false);
+    expect(result.signals.testCount).toBe(1);
+  });
+
+  it("assigns L3 when branch protection has required checks", async () => {
+    const octokit = mockOctokit(
+      [
+        { type: "blob", path: "test/bar.test.ts" },
+        { type: "blob", path: ".github/workflows/build.yml" },
+        { type: "blob", path: "CODEOWNERS" },
+      ],
+      { required_status_checks: { contexts: ["foreman/done-contract"], checks: [] } }
+    );
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.tier).toBe("L3");
+    expect(result.signals.hasBranchProtection).toBe(true);
+    expect(result.signals.requiredChecks).toContain("foreman/done-contract");
+    expect(result.signals.hasCodeowners).toBe(true);
+  });
+
+  it("falls back to unprotected when getBranchProtection throws", async () => {
+    const octokit = mockOctokit([
+      { type: "blob", path: "tests/bar.spec.js" },
+      { type: "blob", path: ".github/workflows/test.yaml" },
+    ]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.tier).toBe("L2");
+    expect(result.signals.hasBranchProtection).toBe(false);
+  });
+
+  it("floors at L1 when no tests are found", async () => {
+    const octokit = mockOctokit([{ type: "blob", path: ".github/workflows/ci.yml" }]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.tier).toBe("L1");
+    expect(result.signals.hasTests).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { renderHandoff } from "./handoff.js";
 import { LABEL_EPIC, taskBranch } from "./protocol/labels.js";
 import { agentBranches, branchStateFor, ciStateFor, prChangedFiles, unresolvedThreads } from "./threads.js";
 import { postMessage, setStatusLabel, splitRepo } from "./github.js";
+import { readReadiness } from "./referee/readiness.js";
 import { onComment, onEpicLabeled, onPrClosed, onPullRequest } from "./handlers.js";
 import { onboardRepo } from "./onboarding.js";
 import { sweepLeases, sweepSilentAgents } from "./leases.js";
@@ -127,6 +128,26 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
     return threadCache;
   }
 
+  // Per-repo trust tier, cached briefly so the dashboard stays cheap.
+  let tierCache: { at: number; tiers: Record<string, string> } = { at: 0, tiers: {} };
+  async function trustTiersFor(repos: RepoOption[]): Promise<Record<string, string>> {
+    if (Date.now() - tierCache.at < 5 * 60_000) return tierCache.tiers;
+    const tiers: Record<string, string> = {};
+    for (const r of repos) {
+      try {
+        const octokit = await probot.auth(r.installationId);
+        const [owner, name] = r.fullName.split("/");
+        const result = await readReadiness(octokit, owner, name);
+        tiers[r.fullName] = result.tier;
+      } catch (e) {
+        probot.log.warn(`readiness fetch failed for ${r.fullName}: ${e}`);
+        tiers[r.fullName] = "L1";
+      }
+    }
+    tierCache = { at: Date.now(), tiers };
+    return tiers;
+  }
+
   if (addHandler) {
     addHandler((req, res) => {
       const path = (req.url ?? "").split("?")[0];
@@ -237,9 +258,10 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
         Promise.all([
           installedRepos().catch(() => [] as RepoOption[]),
           liveState().catch(() => ({ map: {} as ThreadMap, branches: {} as RepoBranches })),
-        ]).then(([repos, live]) => {
+        ]).then(async ([repos, live]) => {
+          const trustTiers = await trustTiersFor(repos).catch(() => ({} as Record<string, string>));
           res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-          res.end(renderDashboard(store, repos, notice, live.map, live.branches));
+          res.end(renderDashboard(store, repos, notice, live.map, live.branches, trustTiers));
         });
         return true;
       }

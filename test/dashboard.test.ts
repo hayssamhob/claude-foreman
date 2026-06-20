@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickupVerdict, getEscalations, costPanel, trustTierPanel } from "../src/dashboard.js";
+import { pickupVerdict, getEscalations, costPanel, trustTierPanel, renderDashboard } from "../src/dashboard.js";
 import { Store } from "../src/state/db.js";
 import type { CommentRow, JobRow, TaskRow } from "../src/state/db.js";
 
@@ -151,5 +151,43 @@ describe("trustTierPanel", () => {
     expect(html).toContain("L1");
     expect(html).toContain("L2");
     expect(html).toContain("L3");
+  });
+});
+
+describe("renderDashboard", () => {
+  it("renders the cost forecast section at the top", () => {
+    const store = new Store(":memory:");
+    const html = renderDashboard(store, [], undefined, {}, {}, {});
+    expect(html).toContain("Cost forecast");
+    expect(html).toContain("No budget ceiling configured");
+    expect(html).toContain("[cost]");
+  });
+
+  it("renders the per-repo trust tier next to the project name", () => {
+    const store = new Store(":memory:");
+    store.upsertTask({
+      repo: "o/r",
+      issue: 1,
+      installation_id: 1,
+      agent: "antigravity",
+      status: "queued",
+      title: "Task one",
+    });
+    const html = renderDashboard(store, [], undefined, {}, {}, { "o/r": "L2" });
+    expect(html).toContain("Trust tier: L2");
+  });
+
+  it("defaults to L1 when no trust tier is provided", () => {
+    const store = new Store(":memory:");
+    store.upsertTask({
+      repo: "o/r",
+      issue: 1,
+      installation_id: 1,
+      agent: "antigravity",
+      status: "queued",
+      title: "Task one",
+    });
+    const html = renderDashboard(store, [], undefined);
+    expect(html).toContain("Trust tier: L1");
   });
 });

@@ -1,3 +1,5 @@
+import type { Octokit } from "../octokit.js";
+
 /**
  * ReadinessScore (M3-1) — `foreman audit`: tests/CI/branch-protection → trust tier.
  *
@@ -139,4 +141,59 @@ export function formatReadinessReport(result: ReadinessResult): string {
   lines.push(`- **L3** (auto-merge): required foreman/* checks under branch protection — *not even a human can merge around the referee*`);
 
   return lines.join("\n");
+}
+
+/**
+ * Read a repo's trust-tier signals from GitHub and compute its ReadinessScore.
+ *
+ * Falls back gracefully when branch protection can't be read (needs the
+ * opt-in `administration:read` scope), so callers always get a tier.
+ */
+export async function readReadiness(octokit: Octokit, owner: string, repo: string): Promise<ReadinessResult> {
+  const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
+  const defaultBranch = repoData.default_branch;
+
+  const { data: tree } = await octokit.rest.git.getTree({
+    owner,
+    repo,
+    tree_sha: defaultBranch,
+    recursive: "1",
+  });
+
+  const entries = tree.tree ?? [];
+  const testFiles = entries.filter(
+    (e) => e.type === "blob" && /\.(test|spec)\.(ts|tsx|js|jsx|py|go|rs|java)$/i.test(e.path ?? "")
+  );
+  const workflows = entries.filter(
+    (e) => e.type === "blob" && /^\.github\/workflows\/.+\.(yml|yaml)$/i.test(e.path ?? "")
+  );
+  const hasCodeowners = entries.some(
+    (e) => e.type === "blob" && (e.path === "CODEOWNERS" || e.path === ".github/CODEOWNERS")
+  );
+
+  let hasBranchProtection = false;
+  let requiredChecks: string[] = [];
+  try {
+    const { data: bp } = await octokit.rest.repos.getBranchProtection({
+      owner,
+      repo,
+      branch: defaultBranch,
+    });
+    hasBranchProtection = true;
+    const contexts = bp.required_status_checks?.contexts ?? [];
+    const checks = (bp.required_status_checks?.checks ?? []).map((c) => (typeof c === "string" ? c : c.context));
+    requiredChecks = [...contexts, ...checks].filter(Boolean);
+  } catch {
+    // Missing admin:read scope or no branch protection — treat as unprotected.
+  }
+
+  return computeReadiness({
+    hasTests: testFiles.length > 0,
+    hasCI: workflows.length > 0,
+    hasBranchProtection,
+    testCount: testFiles.length,
+    ciWorkflows: workflows.map((w) => w.path?.split("/").pop() ?? "").filter(Boolean),
+    requiredChecks,
+    hasCodeowners,
+  });
 }
