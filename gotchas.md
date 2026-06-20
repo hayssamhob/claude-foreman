@@ -16,7 +16,7 @@
 
 ## G1 — Fighters invent project-specific facts
 
-**Symptom.** A free/cheap Fighter writes fluently but **invents** project-specific facts it
+**Symptom.** A free/Open weight Fighters writes fluently but **invents** project-specific facts it
 was never given — label values, file paths, config keys, function signatures, conventions.
 The output looks authoritative and is wrong.
 
@@ -46,7 +46,7 @@ dispatch-then-auto-commit would have shipped a guide documenting labels that don
 - `priority:` `high` · `medium` · `low` — pick-order for Fighters; Coach sets this
 - `agent:` `ollama` · `windsurf-kimi` · `antigravity` · `devin` · `claude` — routing; Coach assigns, Fighter claims
 - `fusion:` `on` — two Fighters work the same issue independently; Coach compares and merges the winner
-- `audit` — filed by the cheap-model audit tick (`scripts/audit-tick.ts`); enters the queue for Coach triage
+- `audit` — filed by the open-weight-model audit tick (`scripts/audit-tick.ts`); enters the queue for Coach triage
 - `good first issue`
 
 > Editing labels? Update this list in the same PR — it's the source a Fighter reads.

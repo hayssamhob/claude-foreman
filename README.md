@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/social-preview.png" alt="Foreman — Claude thinks. Free models type. Foreman makes sure it's done right." width="760">
+  <img src="docs/assets/social-preview.png" alt="Foreman — The Coach thinks. open weight models type. Foreman makes sure it's done right." width="760">
 </p>
 
 <p align="center">
@@ -12,12 +12,12 @@
 
 # Claude Foreman
 
-> Claude thinks. Free models type. Foreman makes sure it's done right.
+> The Coach thinks. open weight models type. Foreman makes sure it's done right.
 
-An autonomous coding supervisor that routes GitHub issues to free AI models (Kimi, Gemini) running in Windsurf, Antigravity, or Cursor — while Claude handles decomposition, review, and escalation.
+An autonomous coding supervisor that routes GitHub issues to free AI models (Kimi, Gemini) running in Windsurf, Antigravity, or Cursor — while the Coach handles decomposition, review, and escalation.
 
 <p align="center">
-  <img src="docs/assets/how-it-works.svg" alt="How Foreman works — the governed loop: a GitHub issue goes to the Corner (Claude plans), into the Ring (free models write the code), through the Referee (tests + Coach verdict gate), and out as a merged PR or an escalation to you." width="100%">
+  <img src="docs/assets/how-it-works.svg" alt="How Foreman works — the governed loop: a GitHub issue goes to the Corner (Claude plans), into the Ring (open weight models write the code), through the Referee (tests + Coach verdict gate), and out as a merged PR or an escalation to you." width="100%">
 </p>
 
 **Manage whole projects on GitHub** — the board shows which fighter is on which issue, live:
@@ -68,6 +68,22 @@ npm run build
 # Extensions → ··· → Install from VSIX → pick out/foreman-bridge-*.vsix
 ```
 
+## Devin Desktop LLM Gateway (Proxy)
+
+`claude-foreman` now includes a built-in proxy that turns the **Devin Desktop App** into a local, OpenAI-compatible API. This allows you to use Devin's powerful open weight models (like `kimi-k2.7`, `glm-5.2`, `swe-1.6`) directly inside Hermes, Antigravity, or any other API client—without API rate limits!
+
+To start the proxy:
+```bash
+npm run devin-proxy
+```
+The server will run on `http://localhost:3001/v1`. 
+
+To configure Hermes to use it:
+1. Run `hermes model`
+2. Select `custom (direct API)`
+3. Set the base URL to `http://localhost:3001/v1`
+4. Pick your desired model from the menu.
+
 ## Quick Start
 
 Once installed, open Claude Code in any project and run:
@@ -94,7 +110,7 @@ Every dispatch cycle is 3 tool calls and costs ~1,300 Claude tokens:
 | **Phase 2** `wait` | Poll `git log` until new commit detected; auto-create PR | ~400 tokens |
 | **Phase 3** `verify` | Diff summary, closing-ref check, optional test run | ~500 tokens |
 
-The free model (Kimi, Gemini) does all the actual coding — zero tokens for that part.
+The open weight models (Kimi, Gemini) does all the actual coding — zero tokens for that part.
 
 ## Workflows
 
@@ -168,7 +184,7 @@ extension/
 | Task file (preflight + dispatch + wait + verify) | 4 | ~1,600 |
 
 At $15/M tokens (Claude Sonnet), dispatching 10 issues costs under $0.20 in Claude tokens.
-The free models (Kimi, Gemini) write all the code at $0.
+The open weight models (Kimi, Gemini) write all the code at $0.
 
 ## Self-Improvement
 

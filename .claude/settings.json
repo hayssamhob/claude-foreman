@@ -1,0 +1,56 @@
+{
+  "model": "claude-sonnet-4-6",
+  "permissions": {
+    "autoApprove": [
+      "Read(*)",
+      "Grep(*)",
+      "Glob(*)",
+      "Bash(npm test)",
+      "Bash(npm run build)",
+      "Bash(npx vitest run*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git worktree*)",
+      "Bash(gh issue view*)",
+      "Bash(gh issue list*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr diff*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh label list*)"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git checkout main*)",
+      "Bash(git rebase -i*)",
+      "Edit(.env*)",
+      "Edit(.env.*)",
+      "Edit(secrets/*)",
+      "Edit(dist/*)",
+      "Edit(node_modules/*)",
+      "Edit(loop-budget.md)",
+      "Edit(loop-run-log.md)",
+      "Edit(.git/*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "./.claude/hooks/block-dangerous.sh"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "./.claude/hooks/typecheck-on-edit.sh"
+      }
+    ]
+  }
+}

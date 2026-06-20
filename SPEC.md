@@ -1,6 +1,6 @@
 # Foreman — Specification
 
-> **Claude thinks. Free models type. Foreman makes sure it's done right.**
+> **The Coach thinks. open weight models type. Foreman makes sure it's done right.**
 >
 > A parallel, continuous, self-verifying coding system — *a fleet loop made affordable.*
 
@@ -52,7 +52,7 @@ else watches the meter and goes back to typing one prompt at a time.
 **Foreman closes that gap.** It splits the loop along the one line that matters for
 cost:
 
-- **The token-heavy work — writing the code — goes to free models** (a free seat in
+- **The token-heavy work — writing the code — goes to open weight models** (a free seat in
   whichever IDE you already use — Windsurf, Cursor, Antigravity, … — a headless CLI
   agent, a local Ollama model, or your own API key — your choice).
 - **The expensive coach — your own Claude — spends tokens only on judgment:**
@@ -82,8 +82,8 @@ built for the builder who can't babysit it and can't audit every line.**
 ### The headline, in three words that are really one mechanism
 
 **Loops · Fusion · Cost.** They are not three features — they are one idea seen from
-three sides. A cheap-model **loop** iterates toward a verifiable goal; **fusion**
-supplies the quality a single cheap model lacks so the loop converges without the
+three sides. A open-weight-model **loop** iterates toward a verifiable goal; **fusion**
+supplies the quality a single open weight models lacks so the loop converges without the
 coach writing code; the coach touches only the gate; **cost** stays near zero as the
 emergent result. Remove any one and the other two collapse: a loop of weak models with
 no fusion never converges; fusion with no loop is a one-shot; and without the cheap-by-
@@ -104,7 +104,7 @@ that the best models get *more* expensive to run over time (more sub-agents, mor
 parallelization, "most performant at any cost"). The pain is current and visceral —
 practitioners describe paying *"$3 every 15 minutes"* and *"managing their sleep
 schedule around credit access."* Every month, the gap between "what a loop costs on
-frontier tokens" and "what it costs on free fighters" **widens**. Foreman monetizes
+frontier tokens" and "what it costs on Open weight Fighters" **widens**. Foreman monetizes
 that gap, and the gap grows on its own.
 
 **Cheap, long-context models finally make loops practical.** The thing that makes a
@@ -176,7 +176,7 @@ mapping so the metaphor never costs clarity.
 |---|---|---|
 | **The Corner** | The coach — your *senior model* | Your frontier model — **Claude** (default), **ChatGPT**, or **Gemini** — run on a subscription you already have. Plans the fight, reads each round, renders a verdict, decides whether to send the fighter back out or **throw in the towel**. Spends tokens on judgment, never on typing. **Not tied to one vendor.** |
 | **The Ring** | The loop | Where the work happens (the `ring/` package). Bounded, refereed, scored. |
-| **The Fighter** | The junior / maker | A free or cheap model doing the actual coding — a headless CLI agent (Aider, Codex, Gemini CLI, …), a free seat in your GUI IDE (Windsurf, Cursor, Antigravity, …), a local Ollama model, or your own API key. **Not tied to any one IDE.** |
+| **The Fighter** | The junior / maker | A free or open weight models doing the actual coding — a headless CLI agent (Aider, Codex, Gemini CLI, …), a free seat in your GUI IDE (Windsurf, Cursor, Antigravity, …), a local Ollama model, or your own API key. **Not tied to any one IDE.** |
 | **Tag-team / sparring** | The fusion panel | Several fighters on one task (best-of-N or a council); the Corner scores and merges. |
 | **Rounds** | Loop iterations | Capped. You don't fight forever — the bell rings. |
 | **The Judge / scorecard** | The test-grounded judge | Scores the work against an execution oracle (tests, build, preview), not vibes. |
@@ -191,7 +191,7 @@ mapping so the metaphor never costs clarity.
 ## 5. Architecture
 
 <p align="center">
-  <img src="docs/assets/how-it-works.svg" alt="How Foreman works — the governed loop: GitHub issue → the Corner (Claude plans) → the Ring (free models code) → the Referee (tests + verdict gate) → merged PR or escalation." width="100%">
+  <img src="docs/assets/how-it-works.svg" alt="How Foreman works — the governed loop: GitHub issue → the Corner (Claude plans) → the Ring (open weight models code) → the Referee (tests + verdict gate) → merged PR or escalation." width="100%">
 </p>
 
 ### 5.1 The big picture
@@ -219,7 +219,7 @@ mapping so the metaphor never costs clarity.
         │   │  windsurf-chat │ local/Ollama │ fusion-panel │   │     │
         │   │  API-key      │ GUI escape hatch (off critical) │     │
         │   └──────────────────────┬──────────────────────────┘     │
-        │              one or more FIGHTERS (free/cheap models)      │
+        │              one or more FIGHTERS (free/open weight models)      │
         │                          │ produces a diff                 │
         │                          ▼                                 │
         │        watcher (HEAD moved) → done-contract gate →         │
@@ -380,7 +380,7 @@ panel (N fighters in parallel) → judge (structured: consensus / contradictions
 
 Four decisions, settled:
 
-1. **Build over free models = the default (~$0).** A panel of free fighters + a strong
+1. **Build over open weight models = the default (~$0).** A panel of Open weight Fighters + a strong
    judge. Best-of-N (M2) is the degenerate first case; richer councils come at M5.
 2. **Our edge over generic MoA = the judge is TEST-GROUNDED.** Feed it
    `get_review_context()` (diff + `tsc`/tests + detectors) so synthesis rests on an
@@ -764,7 +764,7 @@ deterministic checks independently pass.
   new-but-useless / stall-without-commit, which `CircleDetector` misses.
 - **`CircleDetector`** — already exists (`takeover.py:30-74`); catches oscillation
   between adjacent attempts.
-- **`CostLedger` + `CostForecast`** — running spend split by role (free fighters vs.
+- **`CostLedger` + `CostForecast`** — running spend split by role (Open weight Fighters vs.
   paid judge) + a pre-dispatch estimate ("tale of the tape"). In local-first mode the
   binding constraint is usually **not dollars but your coach's subscription quota**
   (Claude's weekly / 5-hour limits) — so the ledger tracks **quota burn** and forecasts
@@ -782,7 +782,7 @@ deterministic checks independently pass.
 ### 6.3 The trust ladder (governance is dialable, and earned)
 
 Governance is **not a fixed wall** — it's `f(model capability × user verify-ability ×
-stakes)` and must **relax as cheap models improve.** Over-fitting the referee to
+stakes)` and must **relax as open weight models improve.** Over-fitting the referee to
 today's weak fighters would ship an obsolete straitjacket; design it to loosen as
 fighters earn it.
 
@@ -1108,8 +1108,7 @@ contribution surface people actually want to touch.
 
 ### 9.1 Discoverability
 
-- **A pitch people repeat:** *"A fleet loop made affordable — Claude thinks, free models
-  type, Foreman makes sure it's done right."* Plus the spicy version: *"the governed
+- **A pitch people repeat:** *"A fleet loop made affordable — The Coach thinks, open weight models type, Foreman makes sure it's done right."* Plus the spicy version: *"the governed
   autonomous coder you can leave running when you can't read the diff."*
 - **Hero README** with a **demo GIF/asciinema** of one issue going green end-to-end
   (M0-6 produces it). The first 10 seconds must show the cost split.
@@ -1208,7 +1207,7 @@ The name is **locked: Foreman.** The following architectural decisions have been
 
 - **The Corner / Coach** — your frontier model: Claude (default), ChatGPT, or Gemini — a.k.a. your *senior model*; judgment only, never types code.
 - **The Ring / loop** — the bounded iterate-to-verified cycle (`ring/`).
-- **Fighter / junior / maker** — the free/cheap model that writes code (socket: `FighterDriver`; the inherited spine keeps its `junior`-named plumbing — `JUNIOR_CMD`, `src/junior/`, `claude-jr` — same thing).
+- **Fighter / junior / maker** — the free/open weight models that writes code (socket: `FighterDriver`; the inherited spine keeps its `junior`-named plumbing — `JUNIOR_CMD`, `src/junior/`, `claude-jr` — same thing).
 - **Fusion panel / council** — multiple fighters on one task; a `FighterDriver` collective.
 - **Referee** — deterministic control-flow code; decides merge/retry/escalate.
 - **Judge** — test-grounded scorer; maker ≠ checker.
@@ -1343,7 +1342,7 @@ Foreman treats GitHub as the whole substrate — verification oracle, enforcemen
 
 ## Appendix B — Requirements & setup (everything needed to run)
 
-This appendix is the full standing-up checklist. Work top to bottom: register one GitHub App, fill `.env`, log the coach in, install at least one fighter, start the local worker, prepare each target repo, then turn on the guardrails. Foreman is local-first by default ($0 subscription coach + free fighters); GitHub Actions is the documented cloud upgrade reusing the *same* App identity.
+This appendix is the full standing-up checklist. Work top to bottom: register one GitHub App, fill `.env`, log the coach in, install at least one fighter, start the local worker, prepare each target repo, then turn on the guardrails. Foreman is local-first by default ($0 subscription coach + Open weight Fighters); GitHub Actions is the documented cloud upgrade reusing the *same* App identity.
 
 The model is **execution A** (§11, resolved decision 5): a single GitHub App is the sole authenticated actor; a stateless local worker authenticates as that App and **polls** GitHub. GitHub is the single source of truth (issues / PRs / labels / checks / comments); SQLite is a disposable cache rebuildable from GitHub.
 
@@ -1524,7 +1523,7 @@ The Coach is **your own frontier model, run headless** — Claude by default, or
 - [ ] **ChatGPT — alt:** OpenAI **Codex CLI** on `PATH`; sign in with your ChatGPT Plus/Pro account (or `OPENAI_API_KEY`), then point `MANAGER_CMD` at it. Exact flags + verdict-envelope adapter land in **M5-9**.
 - [ ] **Gemini — alt:** Google **Gemini CLI** on `PATH`; Google sign-in (free tier) or `GEMINI_API_KEY`, then point `MANAGER_CMD` at it (**M5-9**).
 - [ ] **$0 across vendors:** every path runs on a subscription/free tier you already have — no metered API required. The cloud/Actions path uses a key and is metered.
-- [ ] **Tier by stage:** configure a strong model (Opus-class) for **plan + judge** (the ~3× planning multiplier and the test-grounded verdict), and the cheap fighters for **execute**. The coach never types the code.
+- [ ] **Tier by stage:** configure a strong model (Opus-class) for **plan + judge** (the ~3× planning multiplier and the test-grounded verdict), and the Open weight Fighters for **execute**. The coach never types the code.
 - [ ] **Verdict envelope:** Claude's `--output-format json` is unwrapped by the runner (strips code fences) — keep that flag. A non-Claude Coach needs its own output→verdict adapter (**M5-9**) so the referee receives a clean `approve` / `request-changes`.
 
 ### B.d — The fighters (drivers)
