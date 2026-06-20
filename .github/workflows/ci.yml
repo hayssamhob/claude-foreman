@@ -13,12 +13,20 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows fails on better-sqlite3 (needs Visual Studio build tools) — known false
-    # negative, see AGENTS.md. Keep it in the matrix for signal but don't let it block.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    # We now configure MSVC and Python explicitly for Windows to prevent better-sqlite3 build failures.
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Python (for node-gyp on Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Enable MSVC on Windows
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Set up Node
         uses: actions/setup-node@v6

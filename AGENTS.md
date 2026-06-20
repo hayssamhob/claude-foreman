@@ -38,8 +38,6 @@ For every PR, before you consider the task done:
 ## CI
 
 - GitHub Actions matrix: ubuntu-latest, macos-latest, windows-latest
-- Windows fails on `better-sqlite3` (needs Visual Studio) — this is a known false negative
-- Use `gh pr merge --admin` to override if Windows is the only failure
 
 ## Resolving PR review threads
 
