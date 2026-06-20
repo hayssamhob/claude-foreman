@@ -180,55 +180,121 @@ function displayAuthor(c: CommentRow): string {
   return c.author;
 }
 
-function attentionItems(tasks: TaskRow[], jobs: JobRow[], store: Store, threadMap: ThreadMap): string[] {
-  const items: string[] = [];
+export interface EscalationItem {
+  repo: string;
+  issue: number;
+  taskTitle: string | null;
+  agent: string;
+  reason: string;       // plain-English explanation of why action is needed
+  severity: "info" | "warn" | "error";
+  actionLabel: string;  // label for the "one-click resume" link
+  actionUrl: string;    // the URL for the one-click resume
+}
+
+/**
+ * Aggregate all tasks that need the owner's attention right now.
+ * Pure logic — HTML rendering stays in `attentionItems`.
+ */
+export function getEscalations(
+  tasks: TaskRow[],
+  jobs: JobRow[],
+  store: Store,
+  threadMap: ThreadMap,
+  now = Date.now()
+): EscalationItem[] {
+  const items: EscalationItem[] = [];
+
   for (const t of tasks) {
-    const s = plainStatus(t);
+    const prUrl = t.pr ? `https://github.com/${t.repo}/pull/${t.pr}` : null;
+    const issueUrl = `https://github.com/${t.repo}/issues/${t.issue}`;
+
+    // 1. Stale review threads waiting on the agent
     const stale = (threadMap[threadKey(t)]?.threads ?? NO_THREADS).open.filter(
-      (th) => th.waitingOn === "agent" && !th.fixCommit && Date.now() - th.lastAt > PICKUP_GRACE_MIN * 60_000
+      (th) => th.waitingOn === "agent" && !th.fixCommit && now - th.lastAt > PICKUP_GRACE_MIN * 60_000
     );
-    if (stale.length > 0 && t.pr) {
-      items.push(
-        `<li><strong>${esc(projectName(t.repo))}</strong>: ${stale.length} conversation${stale.length > 1 ? "s" : ""} on “${esc(t.title ?? `task #${t.issue}`)}” ${stale.length > 1 ? "are" : "is"} waiting on ${esc(agentName(t.agent))} with no reply — consider pinging it. <a href="https://github.com/${t.repo}/pull/${t.pr}/files" target="_blank">See the conversations →</a></li>`
-      );
+    if (stale.length > 0 && prUrl) {
+      items.push({
+        repo: t.repo, issue: t.issue, taskTitle: t.title, agent: t.agent,
+        reason: `${stale.length} conversation${stale.length > 1 ? "s" : ""} waiting on ${agentName(t.agent)} with no reply`,
+        severity: "warn",
+        actionLabel: "See the conversations",
+        actionUrl: `${prUrl}/files`,
+      });
     }
-    const warn = pickupVerdict(t, store.lastCommentFor(t.repo, t.issue, t.pr));
+
+    // 2. pickupVerdict — unclaimed task or unanswered revision request
+    const warn = pickupVerdict(t, store.lastCommentFor(t.repo, t.issue, t.pr), now);
     if (warn) {
-      items.push(
-        `<li><strong>${esc(projectName(t.repo))}</strong>: “${esc(t.title ?? `task #${t.issue}`)}” — ${esc(warn)} <a href="https://github.com/${t.repo}/issues/${t.issue}" target="_blank">Open the task →</a></li>`
-      );
+      items.push({
+        repo: t.repo, issue: t.issue, taskTitle: t.title, agent: t.agent,
+        reason: warn,
+        severity: "warn",
+        actionLabel: "Open the task",
+        actionUrl: issueUrl,
+      });
     }
-    if (t.status === "approved" && s.action) {
+
+    // 3. Approved but blocked (autoMerge is on but something is in the way)
+    if (t.status === "approved" && prUrl) {
       const live = threadMap[threadKey(t)];
-      if (config.autoMerge) {
-        // Auto-merge handles the happy path; only ask for the owner when
-        // something they control is blocking the merge.
-        const blockers: string[] = [];
-        if (live?.ci?.overall === "red") blockers.push(`automated tests are failing (${esc(live.ci.detail)})`);
-        const waitingOnYou = (live?.threads ?? NO_THREADS).open.filter((th) => th.waitingOn === "reviewer").length;
-        if (waitingOnYou > 0)
-          blockers.push(`${waitingOnYou} conversation${waitingOnYou > 1 ? "s" : ""} await${waitingOnYou > 1 ? "" : "s"} your reply`);
-        if (blockers.length > 0) {
-          items.push(
-            `<li><strong>${esc(projectName(t.repo))}</strong>: “${esc(t.title ?? `task #${t.issue}`)}” is approved but can't merge itself — ${blockers.join(" and ")}. <a href="${s.action.url}" target="_blank">Unblock it →</a></li>`
-          );
-        }
-      } else {
-        items.push(
-          `<li><strong>${esc(projectName(t.repo))}</strong>: “${esc(t.title ?? `task #${t.issue}`)}” is finished and checked. <a href="${s.action.url}" target="_blank">${s.action.label} →</a></li>`
-        );
+      const blockers: string[] = [];
+      if (live?.ci?.overall === "red") blockers.push(`tests are failing (${live.ci.detail ?? ""})`);
+      const waitingOnYou = (live?.threads ?? NO_THREADS).open.filter((th) => th.waitingOn === "reviewer").length;
+      if (waitingOnYou > 0) blockers.push(`${waitingOnYou} conversation${waitingOnYou > 1 ? "s" : ""} await your reply`);
+      if (blockers.length > 0) {
+        items.push({
+          repo: t.repo, issue: t.issue, taskTitle: t.title, agent: t.agent,
+          reason: `Approved but can't merge: ${blockers.join(" and ")}`,
+          severity: "warn",
+          actionLabel: config.autoMerge ? "Unblock it" : "Review & merge",
+          actionUrl: prUrl,
+        });
+      } else if (!config.autoMerge) {
+        // Manual merge mode — approved = needs owner click
+        items.push({
+          repo: t.repo, issue: t.issue, taskTitle: t.title, agent: t.agent,
+          reason: "Finished and checked — waiting for your green light to merge",
+          severity: "info",
+          actionLabel: "Review & accept",
+          actionUrl: prUrl,
+        });
       }
     }
-    if (t.status === "failed" && s.action) {
-      items.push(
-        `<li><strong>${esc(projectName(t.repo))}</strong>: “${esc(t.title ?? `task #${t.issue}`)}” got stuck and needs a human decision. <a href="${s.action.url}" target="_blank">${s.action.label} →</a></li>`
-      );
+
+    // 4. Failed task — needs human decision
+    if (t.status === "failed") {
+      items.push({
+        repo: t.repo, issue: t.issue, taskTitle: t.title, agent: t.agent,
+        reason: "All agents tried — task is stuck and needs a human decision",
+        severity: "error",
+        actionLabel: "See what happened",
+        actionUrl: issueUrl,
+      });
     }
   }
+
+  // 5. Manager offline
   if (jobs.some((j) => j.status === "needs_human")) {
-    items.push(`<li>The coach assistant is offline on this computer — recent requests are parked until it's back.</li>`);
+    items.push({
+      repo: "", issue: 0, taskTitle: null, agent: "",
+      reason: "The manager assistant is offline — recent requests are parked until it's back",
+      severity: "error",
+      actionLabel: "Check status",
+      actionUrl: "",
+    });
   }
+
   return items;
+}
+
+function attentionItems(tasks: TaskRow[], jobs: JobRow[], store: Store, threadMap: ThreadMap): string[] {
+  return getEscalations(tasks, jobs, store, threadMap).map((e) => {
+    if (!e.issue) return `<li>${esc(e.reason)}</li>`;  // manager-offline item
+    const link = e.actionUrl
+      ? ` <a href="${esc(e.actionUrl)}" target="_blank">${esc(e.actionLabel)} →</a>`
+      : "";
+    return `<li><strong>${esc(projectName(e.repo))}</strong>: "${esc(e.taskTitle ?? `task #${e.issue}`)}" — ${esc(e.reason)}${link}</li>`;
+  });
 }
 
 /** The visual issue ⇄ PR pairing: spec, work-in-progress, branch, automated checks. */
