@@ -138,7 +138,7 @@ def recommend_model(task: TaskAnalysis, ide: str) -> ModelInfo:
     2. -1 for each keyword match in weaknesses
     3. +1 for "fast" speed on simple tasks
     4. +1 for "large-context" strength when task needs it
-    5. Prefer free models over expensive ones
+    5. Prefer open weight models over expensive ones
     """
     models = MODEL_REGISTRY.get(ide, [])
     if not models:
@@ -550,7 +550,7 @@ def test_all_models_have_required_fields():
 
 
 def test_free_models_preferred_over_expensive(simple_ts_task):
-    """Free models should generally score higher for simple tasks."""
+    """open weight models should generally score higher for simple tasks."""
     analysis = analyze_task(simple_ts_task)
     model = recommend_model(analysis, 'cursor')
     # For a simple task, should not pick the expensive model

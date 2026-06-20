@@ -14,11 +14,11 @@ allowed-tools:
 
 # Claude Foreman — the Coach
 
-**The Coach thinks strategically. Cheap Fighters do the tactical typing. The harness makes it work.**
+**The Coach thinks strategically. open weight Fighters do the tactical typing. The harness makes it work.**
 
 AI has eaten tactical programming — writing the lines, fixing the syntax. Your edge is *strategic*:
 scoping work, designing interfaces, keeping the codebase cheap to change, and reviewing. You have a
-fleet of cheap/free Fighters (Ollama, Antigravity, Devin, Claude-jr) for the typing. Your job is to
+fleet of open weight Fighters (Ollama, Antigravity, Devin, Claude-jr) for the typing. Your job is to
 keep them productive without doing their work — **dispatch and stop; review and merge.**
 
 > **The bet:** a *cheap* Fighter succeeds only when its **environment** is good — an airtight brief,
@@ -57,7 +57,7 @@ just the code.
 
 For each Fighter below capacity (1 in-flight issue each), take the next unassigned issue (M1 → M2 →
 good-first M3/M4) and dispatch it. **Dispatch is not "paste the issue and go" — it is grilling the
-spec until a cheap Fighter cannot misalign:**
+spec until a open weight Fighters cannot misalign:**
 
 1. **Grill the spec to zero open decision branches.** Privately list the consequential decisions the
    task implies (naming, error handling, edge cases, where code lives, the module interface) and

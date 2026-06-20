@@ -53,8 +53,8 @@ export async function onComment(ctx: Context<"issue_comment.created">, store: St
     created_at: Date.parse(ctx.payload.comment.created_at) || Date.now(),
   });
 
-  // Human command: /decompose on any issue
-  if (/^\/decompose\b/m.test(body) && ctx.payload.sender.type === "User") {
+  // Human command: /fight on any issue (formerly /decompose)
+  if (/^\/fight\b/m.test(body) && ctx.payload.sender.type === "User") {
     store.enqueueJob({
       type: "decompose",
       repo,
@@ -65,6 +65,22 @@ export async function onComment(ctx: Context<"issue_comment.created">, store: St
     });
     await ctx.octokit.rest.reactions.createForIssueComment(
       ctx.repo({ comment_id: ctx.payload.comment.id, content: "+1" })
+    );
+    return;
+  }
+
+  // Human ChatOps: @foreman or @coach
+  if (/(?:@foreman|@coach)\b/i.test(body) && ctx.payload.sender.type === "User") {
+    store.enqueueJob({
+      type: "discuss",
+      repo,
+      installation_id: ctx.payload.installation!.id,
+      issue: ctx.payload.issue.number,
+      pr: null,
+      head_sha: null,
+    });
+    await ctx.octokit.rest.reactions.createForIssueComment(
+      ctx.repo({ comment_id: ctx.payload.comment.id, content: "eyes" })
     );
     return;
   }

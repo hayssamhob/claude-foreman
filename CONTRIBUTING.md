@@ -1,8 +1,8 @@
 # Contributing to Claude Foreman
 
-Welcome! We're building **Claude Foreman** — an open-source, GitHub-native autonomous coding orchestrator where *the Coach thinks, free models type, and Foreman makes sure it's done right*. Your contributions help build a robust, **governed loop** for AI-assisted coding.
+Welcome! We're building **Claude Foreman** — an open-source, GitHub-native autonomous coding orchestrator where *the Coach thinks, open weight models type, and Foreman makes sure it's done right*. Your contributions help build a robust, **governed loop** for AI-assisted coding.
 
-New to the cast? The **Coach** is a senior model that plans and reviews (it never writes code); the **Fighters** are free/cheap models that write the code; the **Judge** ranks candidates in best-of-N fusion; and the **Referee** is deterministic code that gates every merge on tests + acceptance criteria + budget. The whole design lives in **[SPEC.md](SPEC.md)**.
+New to the cast? The **Coach** is a senior model that plans and reviews (it never writes code); the **Fighters** are free/open weight models that write the code; the **Judge** ranks candidates in best-of-N fusion; and the **Referee** is deterministic code that gates every merge on tests + acceptance criteria + budget. The whole design lives in **[SPEC.md](SPEC.md)**.
 
 ## Ways to contribute
 

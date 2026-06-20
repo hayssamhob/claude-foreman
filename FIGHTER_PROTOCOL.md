@@ -13,7 +13,7 @@ flows through GitHub. No sidechannels, no local files, no polling the Coach.
 ## The Foreman bet (why the brief is so detailed)
 
 Fighters are cheap or free. The Coach (a frontier model) is expensive and stays strategic. The whole
-system only pays off if a **cheap** Fighter can succeed — and a cheap Fighter succeeds when its
+system only pays off if a **cheap** Fighter can succeed — and a open weight Fighters succeeds when its
 **environment** is good: an airtight brief, fixed interfaces, a codebase that's easy to change. That
 environment is your **Agent Experience (AX)**. If you ever find yourself guessing, the brief failed
 you — say so (see *Grill* below) rather than guessing.

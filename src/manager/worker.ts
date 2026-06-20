@@ -8,7 +8,7 @@ import { notify } from "../notify.js";
 import { claudeAccountAgents, recordRateLimit, resetClock, checkCeilings } from "../agentlimits.js";
 import { RateLimitedError } from "../ratelimit.js";
 import type { JobRow, Store } from "../state/db.js";
-import { decomposePrompt, reviewPrompt } from "./prompts.js";
+import { decomposePrompt, reviewPrompt, discussPrompt } from "./prompts.js";
 import { ManagerUnavailableError, runManager } from "./runner.js";
 import { assembleContextPacket, formatContextPacket } from "../context.js";
 import { checkClaims } from "../referee/claimcheck.js";
@@ -25,6 +25,7 @@ export type AuthFn = (installationId: number) => Promise<Octokit>;
 interface DecomposeResult {
   tasks?: { title: string; agent: string; spec: string; doneContract?: string[]; augmentOnly?: boolean }[];
   questions?: string[];
+  updatedBody?: string;
 }
 export interface ReviewResult {
   verdict: "approve" | "request_changes";
@@ -58,6 +59,9 @@ export function startWorker(store: Store, auth: AuthFn, log: (msg: string) => vo
           const octokit = await auth(job.installation_id);
           if (job.type === "decompose") {
             await runDecompose(job, store, octokit);
+            store.finishJob(job.id, "done");
+          } else if (job.type === "discuss") {
+            await runDiscuss(job, store, octokit);
             store.finishJob(job.id, "done");
           } else {
             const res = await runReview(job, store, octokit);
@@ -98,16 +102,27 @@ export function startWorker(store: Store, auth: AuthFn, log: (msg: string) => vo
 async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promise<void> {
   const { owner, repo } = splitRepo(job.repo);
   const { data: epic } = await octokit.rest.issues.get({ owner, repo, issue_number: job.issue });
+  const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: job.issue, per_page: 100 });
 
   const result = await runManager<DecomposeResult>(
     decomposePrompt({
       epicTitle: epic.title,
       epicBody: guardIssueBody(epic.body ?? "", `${job.repo}#${job.issue}`),
+      comments: comments.map(c => ({ author: c.user?.login ?? "unknown", body: c.body ?? "" })),
       agents: config.agents,
       repo: job.repo,
     }),
     (usd, inT, outT) => store.recordSpend(job.repo, job.issue, config.managerName, "decompose", usd, inT, outT)
   );
+
+  if (result.updatedBody) {
+    await octokit.rest.issues.update({
+      owner,
+      repo,
+      issue_number: job.issue,
+      body: result.updatedBody,
+    });
+  }
   if (Array.isArray(result.questions) && result.questions.length > 0) {
     const list = result.questions.map((q) => `- ${q}`).join("\n");
     await octokit.rest.issues.createComment({
@@ -160,6 +175,34 @@ async function runDecompose(job: JobRow, store: Store, octokit: Octokit): Promis
     issue_number: job.issue,
     body: `🤖 Decomposed into ${created.length} task(s):\n\n${created.join("\n")}`,
   });
+}
+
+interface DiscussResult {
+  reply: string;
+}
+
+async function runDiscuss(job: JobRow, store: Store, octokit: Octokit): Promise<void> {
+  const { owner, repo } = splitRepo(job.repo);
+  const { data: epic } = await octokit.rest.issues.get({ owner, repo, issue_number: job.issue });
+  const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: job.issue, per_page: 100 });
+
+  const result = await runManager<DiscussResult>(
+    discussPrompt({
+      epicTitle: epic.title,
+      epicBody: guardIssueBody(epic.body ?? "", `${job.repo}#${job.issue}`),
+      comments: comments.map(c => ({ author: c.user?.login ?? "unknown", body: c.body ?? "" })),
+    }),
+    (usd, inT, outT) => store.recordSpend(job.repo, job.issue, config.managerName, "discuss", usd, inT, outT)
+  );
+
+  if (result.reply) {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: job.issue,
+      body: `🧠 **Coach:**\n\n${result.reply}`,
+    });
+  }
 }
 
 export function buildTaskBody(spec: string, agent: string, epic: number, repo: string, taskIssue = 0, doneContract: string[] = [], contextPacket = "", augmentOnly = false, loopContract?: LoopContract): string {
