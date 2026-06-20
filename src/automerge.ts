@@ -4,6 +4,7 @@ import type { AuthFn } from "./manager/worker.js";
 import { notify } from "./notify.js";
 import type { Store } from "./state/db.js";
 import { ciStateFor, unresolvedThreads, type CiState } from "./threads.js";
+import { isPreviewEnabled, previewGate } from "./referee/preview-mcp.js";
 
 /**
  * Auto-merge: once the manager has approved a PR, it merges itself the moment
@@ -21,6 +22,8 @@ export function mergeGate(args: {
   openThreads: number;
   held: boolean;
   mergeable: boolean | null; // GitHub's PR mergeability; null = still computing
+  previewOk?: boolean; // M4-2: preview MCP connector gate (undefined = disabled)
+  previewReason?: string;
 }): MergeGate {
   if (args.held) return { ok: false, reason: `the '${config.holdLabel}' label is on the task — waiting for you to merge manually` };
   if (args.ci.overall === "none") return { ok: false, reason: "no automated checks found — the done-contract requires a green CI run" };
@@ -30,6 +33,8 @@ export function mergeGate(args: {
     return { ok: false, reason: `${args.openThreads} review conversation${args.openThreads > 1 ? "s are" : " is"} still unresolved` };
   if (args.mergeable === false) return { ok: false, reason: "the branch conflicts with the main line — needs a rebase" };
   if (args.mergeable === null) return { ok: false, reason: "GitHub is still computing mergeability — retrying shortly" };
+  // M4-2: preview MCP connector gate
+  if (args.previewOk === false) return { ok: false, reason: `preview gate failed: ${args.previewReason ?? "unknown"}` };
   return { ok: true, reason: "all gates green" };
 }
 
@@ -48,11 +53,21 @@ export async function sweepAutoMerge(store: Store, auth: AuthFn, log: (m: string
         ciStateFor(octokit, t.repo, t.pr!, config.checkName),
         unresolvedThreads(octokit, t.repo, t.pr!),
       ]);
+      // M4-2: run the preview MCP connector gate if enabled
+      let previewOk: boolean | undefined;
+      let previewReason: string | undefined;
+      if (isPreviewEnabled()) {
+        const preview = await previewGate();
+        previewOk = preview.ok;
+        previewReason = preview.reason;
+      }
       const gate = mergeGate({
         ci,
         openThreads: threads.open.length,
         held: labels.some((l) => l.name === config.holdLabel),
         mergeable: pr.mergeable,
+        previewOk,
+        previewReason,
       });
       if (!gate.ok) {
         log(`auto-merge waiting on ${t.repo}#${t.issue} (PR #${t.pr}): ${gate.reason}`);
