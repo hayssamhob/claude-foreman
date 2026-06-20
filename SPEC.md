@@ -1,6 +1,6 @@
 # Foreman — Specification
 
-> **Claude thinks. Free models type. Foreman makes sure it's done right.**
+> **The Coach thinks. Free models type. Foreman makes sure it's done right.**
 >
 > A parallel, continuous, self-verifying coding system — *a fleet loop made affordable.*
 
@@ -1108,8 +1108,7 @@ contribution surface people actually want to touch.
 
 ### 9.1 Discoverability
 
-- **A pitch people repeat:** *"A fleet loop made affordable — Claude thinks, free models
-  type, Foreman makes sure it's done right."* Plus the spicy version: *"the governed
+- **A pitch people repeat:** *"A fleet loop made affordable — The Coach thinks, free models type, Foreman makes sure it's done right."* Plus the spicy version: *"the governed
   autonomous coder you can leave running when you can't read the diff."*
 - **Hero README** with a **demo GIF/asciinema** of one issue going green end-to-end
   (M0-6 produces it). The first 10 seconds must show the cost split.

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/social-preview.png" alt="Foreman — Claude thinks. Free models type. Foreman makes sure it's done right." width="760">
+  <img src="docs/assets/social-preview.png" alt="Foreman — The Coach thinks. Free models type. Foreman makes sure it's done right." width="760">
 </p>
 
 <p align="center">
@@ -12,9 +12,9 @@
 
 # Claude Foreman
 
-> Claude thinks. Free models type. Foreman makes sure it's done right.
+> The Coach thinks. Free models type. Foreman makes sure it's done right.
 
-An autonomous coding supervisor that routes GitHub issues to free AI models (Kimi, Gemini) running in Windsurf, Antigravity, or Cursor — while Claude handles decomposition, review, and escalation.
+An autonomous coding supervisor that routes GitHub issues to free AI models (Kimi, Gemini) running in Windsurf, Antigravity, or Cursor — while the Coach handles decomposition, review, and escalation.
 
 <p align="center">
   <img src="docs/assets/how-it-works.svg" alt="How Foreman works — the governed loop: a GitHub issue goes to the Corner (Claude plans), into the Ring (free models write the code), through the Referee (tests + Coach verdict gate), and out as a merged PR or an escalation to you." width="100%">

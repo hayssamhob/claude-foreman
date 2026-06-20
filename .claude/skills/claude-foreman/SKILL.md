@@ -2,7 +2,7 @@
 name: claude-foreman
 version: 2.0.0
 description: |
-  Coach a fleet of cheap/free coding agents ("Fighters") over GitHub. Claude stays strategic
+  Coach a fleet of cheap/free coding agents ("Fighters") over GitHub. The Coach stays strategic
   (scope, interfaces, review); Fighters do the tactical typing. Work flows as a queue of GitHub
   issues: dispatch → grill → implement → review → merge. Invoke when the user says "use foreman",
   "dispatch this", "send to a Fighter", "run the coach loop", or wants issues decomposed and worked.
@@ -14,7 +14,7 @@ allowed-tools:
 
 # Claude Foreman — the Coach
 
-**Claude thinks strategically. Cheap Fighters do the tactical typing. The harness makes it work.**
+**The Coach thinks strategically. Cheap Fighters do the tactical typing. The harness makes it work.**
 
 AI has eaten tactical programming — writing the lines, fixing the syntax. Your edge is *strategic*:
 scoping work, designing interfaces, keeping the codebase cheap to change, and reviewing. You have a
