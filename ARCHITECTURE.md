@@ -57,7 +57,7 @@ The courier that turns "issue labeled `agent:X`" → "Fighter X actually runs an
 
 ## Cost Model
 
-- **open weight Fighters**: ollama, windsurf-kimi, antigravity, devin-local — $0
+- **Open weight Fighters**: ollama, windsurf-kimi, antigravity, devin-local — $0
 - **Paid Coach**: manager (Claude) — tracked via `CostLedger` and `costForecast()`
 - **Budget ceiling**: `MAX_USD` env var; `costForecast()` logs remaining budget at each review
 

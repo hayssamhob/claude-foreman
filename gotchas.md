@@ -16,7 +16,7 @@
 
 ## G1 — Fighters invent project-specific facts
 
-**Symptom.** A free/open weight Fighters writes fluently but **invents** project-specific facts it
+**Symptom.** A free/Open weight Fighters writes fluently but **invents** project-specific facts it
 was never given — label values, file paths, config keys, function signatures, conventions.
 The output looks authoritative and is wrong.
 

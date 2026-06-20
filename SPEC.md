@@ -104,7 +104,7 @@ that the best models get *more* expensive to run over time (more sub-agents, mor
 parallelization, "most performant at any cost"). The pain is current and visceral —
 practitioners describe paying *"$3 every 15 minutes"* and *"managing their sleep
 schedule around credit access."* Every month, the gap between "what a loop costs on
-frontier tokens" and "what it costs on open weight Fighters" **widens**. Foreman monetizes
+frontier tokens" and "what it costs on Open weight Fighters" **widens**. Foreman monetizes
 that gap, and the gap grows on its own.
 
 **Cheap, long-context models finally make loops practical.** The thing that makes a
@@ -380,7 +380,7 @@ panel (N fighters in parallel) → judge (structured: consensus / contradictions
 
 Four decisions, settled:
 
-1. **Build over open weight models = the default (~$0).** A panel of open weight Fighters + a strong
+1. **Build over open weight models = the default (~$0).** A panel of Open weight Fighters + a strong
    judge. Best-of-N (M2) is the degenerate first case; richer councils come at M5.
 2. **Our edge over generic MoA = the judge is TEST-GROUNDED.** Feed it
    `get_review_context()` (diff + `tsc`/tests + detectors) so synthesis rests on an
@@ -764,7 +764,7 @@ deterministic checks independently pass.
   new-but-useless / stall-without-commit, which `CircleDetector` misses.
 - **`CircleDetector`** — already exists (`takeover.py:30-74`); catches oscillation
   between adjacent attempts.
-- **`CostLedger` + `CostForecast`** — running spend split by role (open weight Fighters vs.
+- **`CostLedger` + `CostForecast`** — running spend split by role (Open weight Fighters vs.
   paid judge) + a pre-dispatch estimate ("tale of the tape"). In local-first mode the
   binding constraint is usually **not dollars but your coach's subscription quota**
   (Claude's weekly / 5-hour limits) — so the ledger tracks **quota burn** and forecasts
@@ -1342,7 +1342,7 @@ Foreman treats GitHub as the whole substrate — verification oracle, enforcemen
 
 ## Appendix B — Requirements & setup (everything needed to run)
 
-This appendix is the full standing-up checklist. Work top to bottom: register one GitHub App, fill `.env`, log the coach in, install at least one fighter, start the local worker, prepare each target repo, then turn on the guardrails. Foreman is local-first by default ($0 subscription coach + open weight Fighters); GitHub Actions is the documented cloud upgrade reusing the *same* App identity.
+This appendix is the full standing-up checklist. Work top to bottom: register one GitHub App, fill `.env`, log the coach in, install at least one fighter, start the local worker, prepare each target repo, then turn on the guardrails. Foreman is local-first by default ($0 subscription coach + Open weight Fighters); GitHub Actions is the documented cloud upgrade reusing the *same* App identity.
 
 The model is **execution A** (§11, resolved decision 5): a single GitHub App is the sole authenticated actor; a stateless local worker authenticates as that App and **polls** GitHub. GitHub is the single source of truth (issues / PRs / labels / checks / comments); SQLite is a disposable cache rebuildable from GitHub.
 
@@ -1523,7 +1523,7 @@ The Coach is **your own frontier model, run headless** — Claude by default, or
 - [ ] **ChatGPT — alt:** OpenAI **Codex CLI** on `PATH`; sign in with your ChatGPT Plus/Pro account (or `OPENAI_API_KEY`), then point `MANAGER_CMD` at it. Exact flags + verdict-envelope adapter land in **M5-9**.
 - [ ] **Gemini — alt:** Google **Gemini CLI** on `PATH`; Google sign-in (free tier) or `GEMINI_API_KEY`, then point `MANAGER_CMD` at it (**M5-9**).
 - [ ] **$0 across vendors:** every path runs on a subscription/free tier you already have — no metered API required. The cloud/Actions path uses a key and is metered.
-- [ ] **Tier by stage:** configure a strong model (Opus-class) for **plan + judge** (the ~3× planning multiplier and the test-grounded verdict), and the open weight Fighters for **execute**. The coach never types the code.
+- [ ] **Tier by stage:** configure a strong model (Opus-class) for **plan + judge** (the ~3× planning multiplier and the test-grounded verdict), and the Open weight Fighters for **execute**. The coach never types the code.
 - [ ] **Verdict envelope:** Claude's `--output-format json` is unwrapped by the runner (strips code fences) — keep that flag. A non-Claude Coach needs its own output→verdict adapter (**M5-9**) so the referee receives a clean `approve` / `request-changes`.
 
 ### B.d — The fighters (drivers)
