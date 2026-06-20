@@ -14,12 +14,14 @@ import { devinAdapter } from "../src/dispatch/devin.js";
 import { devinLocalAdapter } from "../src/dispatch/devin-local.js";
 import { ollamaAdapter } from "../src/dispatch/ollama.js";
 import { cursorAdapter } from "../src/dispatch/cursor.js";
+import { fusionAdapter } from "../src/dispatch/fusion.js";
 
 const ADAPTERS: Record<string, FighterAdapter> = {
   devin: devinLocalAdapter,
   "devin-cloud": devinAdapter,
   ollama: ollamaAdapter,
   cursor: cursorAdapter,
+  fusion: fusionAdapter,
   noop: noopAdapter,
 };
 
