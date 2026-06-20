@@ -1,0 +1,16 @@
+# CODEOWNERS — auto-route PR reviews to the right maintainer.
+# Pairs with branch protection's "require code owner reviews" setting.
+
+# Default owner for everything
+*                           @hayssamhob
+
+# The merge gate and referee are safety-critical — always need owner review
+/src/automerge.ts           @hayssamhob
+/src/referee/               @hayssamhob
+/src/guard/                 @hayssamhob
+
+# Protocol/labels define the agent routing taxonomy
+/src/protocol/              @hayssamhob
+
+# CI + branch protection config
+/.github/                   @hayssamhob
