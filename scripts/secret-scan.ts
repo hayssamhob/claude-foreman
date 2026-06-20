@@ -22,9 +22,19 @@ const baseSha = process.env.BASE_SHA ?? "origin/main";
 const headSha = process.env.GITHUB_SHA ?? "HEAD";
 
 // Only scan added/modified text files — skip binaries, lockfiles, and vendored dirs.
-const diff = run(
-  `git diff --no-color --unified=0 ${baseSha}...${headSha} -- . ':(exclude)package-lock.json' ':(exclude)node_modules' ':(exclude)dist' ':(exclude)*.lock'`,
-);
+let diff: string;
+try {
+  diff = run(
+    `git diff --no-color --unified=0 ${baseSha}...${headSha} -- . ':(exclude)package-lock.json' ':(exclude)node_modules' ':(exclude)dist' ':(exclude)*.lock'`,
+  );
+} catch (error: unknown) {
+  console.error(`secret-scan: Failed to run git diff between ${baseSha} and ${headSha}.`);
+  console.error("This often happens in CI if the repository was shallow-cloned (fetch-depth: 1).");
+  console.error("Ensure the base branch is fetched or checkout with 'fetch-depth: 0'.");
+  const stderr = (error as { stderr?: Buffer }).stderr;
+  if (stderr) console.error(`Git error: ${stderr.toString().trim()}`);
+  process.exit(1);
+}
 
 if (!diff.trim()) {
   console.log("secret-scan: no diff to scan, exiting clean.");
