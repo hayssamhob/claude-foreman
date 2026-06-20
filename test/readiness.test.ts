@@ -189,4 +189,45 @@ describe("readReadiness", () => {
     expect(result.tier).toBe("L1");
     expect(result.signals.hasTests).toBe(false);
   });
+
+  it("detects Go test files (_test.go)", async () => {
+    const octokit = mockOctokit([
+      { type: "blob", path: "pkg/foo_test.go" },
+      { type: "blob", path: ".github/workflows/ci.yml" },
+    ]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.signals.hasTests).toBe(true);
+    expect(result.signals.testCount).toBe(1);
+  });
+
+  it("detects Python test files (test_*.py and *_test.py)", async () => {
+    const octokit = mockOctokit([
+      { type: "blob", path: "tests/test_foo.py" },
+      { type: "blob", path: "tests/bar_test.py" },
+      { type: "blob", path: ".github/workflows/ci.yml" },
+    ]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.signals.hasTests).toBe(true);
+    expect(result.signals.testCount).toBe(2);
+  });
+
+  it("detects Java test files (*Test.java)", async () => {
+    const octokit = mockOctokit([
+      { type: "blob", path: "src/MyServiceTest.java" },
+      { type: "blob", path: ".github/workflows/ci.yml" },
+    ]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.signals.hasTests).toBe(true);
+    expect(result.signals.testCount).toBe(1);
+  });
+
+  it("detects Rust integration tests (tests/*.rs)", async () => {
+    const octokit = mockOctokit([
+      { type: "blob", path: "tests/integration.rs" },
+      { type: "blob", path: ".github/workflows/ci.yml" },
+    ]);
+    const result = await readReadiness(octokit, "o", "r");
+    expect(result.signals.hasTests).toBe(true);
+    expect(result.signals.testCount).toBe(1);
+  });
 });

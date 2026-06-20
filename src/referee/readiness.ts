@@ -161,9 +161,18 @@ export async function readReadiness(octokit: Octokit, owner: string, repo: strin
   });
 
   const entries = tree.tree ?? [];
-  const testFiles = entries.filter(
-    (e) => e.type === "blob" && /\.(test|spec)\.(ts|tsx|js|jsx|py|go|rs|java)$/i.test(e.path ?? "")
-  );
+  const testFiles = entries.filter((e) => {
+    if (e.type !== "blob" || !e.path) return false;
+    const path = e.path;
+    return (
+      /\.(test|spec)\.(ts|tsx|js|jsx)$/i.test(path) ||
+      /(^|\/)test_[^/]+\.py$/i.test(path) ||
+      /_test\.py$/i.test(path) ||
+      /_test\.go$/i.test(path) ||
+      /(^|\/)tests\/[^/]+\.rs$/i.test(path) ||
+      /tests?\.java$/i.test(path)
+    );
+  });
   const workflows = entries.filter(
     (e) => e.type === "blob" && /^\.github\/workflows\/.+\.(yml|yaml)$/i.test(e.path ?? "")
   );

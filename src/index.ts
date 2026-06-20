@@ -133,17 +133,19 @@ export default function app(probot: Probot, { addHandler }: Partial<ApplicationF
   async function trustTiersFor(repos: RepoOption[]): Promise<Record<string, string>> {
     if (Date.now() - tierCache.at < 5 * 60_000) return tierCache.tiers;
     const tiers: Record<string, string> = {};
-    for (const r of repos) {
-      try {
-        const octokit = await probot.auth(r.installationId);
-        const [owner, name] = r.fullName.split("/");
-        const result = await readReadiness(octokit, owner, name);
-        tiers[r.fullName] = result.tier;
-      } catch (e) {
-        probot.log.warn(`readiness fetch failed for ${r.fullName}: ${e}`);
-        tiers[r.fullName] = "L1";
-      }
-    }
+    await Promise.all(
+      repos.map(async (r) => {
+        try {
+          const octokit = await probot.auth(r.installationId);
+          const [owner, name] = r.fullName.split("/");
+          const result = await readReadiness(octokit, owner, name);
+          tiers[r.fullName] = result.tier;
+        } catch (e) {
+          probot.log.warn(`readiness fetch failed for ${r.fullName}: ${e}`);
+          tiers[r.fullName] = "L1";
+        }
+      }),
+    );
     tierCache = { at: Date.now(), tiers };
     return tiers;
   }
