@@ -124,6 +124,14 @@ export function formatReadinessReport(result: ReadinessResult): string {
     lines.push(``);
   }
 
+  if (!result.signals.hasTests) {
+    lines.push(`### Recommended Mission`);
+    lines.push(
+      `Stand up a test harness before doing feature work. Without an execution oracle, the test-grounded judge has no way to verify done-contracts, so the repo is floored at L1. Add unit tests (e.g., Vitest or Jest) and a CI workflow that runs them on every PR.`
+    );
+    lines.push(``);
+  }
+
   lines.push(`### Signals`);
   lines.push(`| Signal | Value |`);
   lines.push(`|---|---|`);
