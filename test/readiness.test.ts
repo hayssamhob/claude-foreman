@@ -120,4 +120,17 @@ describe("formatReadinessReport", () => {
     expect(report).toContain("Branch protection");
     expect(report).toContain("CODEOWNERS");
   });
+
+  it("recommends a test-harness mission when no tests exist", () => {
+    const result = computeReadiness(SIGNALS_NO_TESTS);
+    const report = formatReadinessReport(result);
+    expect(report).toContain("### Recommended Mission");
+    expect(report).toContain("test harness");
+  });
+
+  it("does not recommend a test-harness mission when tests exist", () => {
+    const result = computeReadiness(SIGNALS_L2);
+    const report = formatReadinessReport(result);
+    expect(report).not.toContain("### Recommended Mission");
+  });
 });
