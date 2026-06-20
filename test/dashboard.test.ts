@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { pickupVerdict } from "../src/dashboard.js";
-import type { CommentRow, TaskRow } from "../src/state/db.js";
+import { pickupVerdict, getEscalations } from "../src/dashboard.js";
+import { Store } from "../src/state/db.js";
+import type { CommentRow, JobRow, TaskRow } from "../src/state/db.js";
 
 const NOW = 1_000_000_000_000;
 const MIN = 60_000;
@@ -62,5 +63,37 @@ describe("pickupVerdict", () => {
       created_at: NOW - 5 * MIN,
     };
     expect(pickupVerdict(task({ status: "changes_requested" }), last, NOW)).toBeNull();
+  });
+});
+
+describe("getEscalations", () => {
+  const store = new Store(":memory:");
+  const noJobs: JobRow[] = [];
+  const emptyMap = {};
+
+  it("returns empty for a task in healthy claimed state", () => {
+    const t = task({ status: "claimed", updated_at: NOW - 5 * MIN });
+    expect(getEscalations([t], noJobs, store, emptyMap, NOW)).toEqual([]);
+  });
+
+  it("returns warn for a queued task past the grace period", () => {
+    const t = task({ status: "queued", updated_at: NOW - 30 * MIN });
+    const items = getEscalations([t], noJobs, store, emptyMap, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0].severity).toBe("warn");
+    expect(items[0].reason).toMatch(/hasn't picked this up/);
+    expect(items[0].actionUrl).toContain("/issues/");
+  });
+
+  it("returns error for a failed task", () => {
+    const t = task({ status: "failed" });
+    const items = getEscalations([t], noJobs, store, emptyMap, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0].severity).toBe("error");
+  });
+
+  it("returns empty for healthy claimed task with fresh branch", () => {
+    const t = task({ status: "claimed", updated_at: NOW - 5 * MIN });
+    expect(getEscalations([t], noJobs, store, emptyMap, NOW)).toHaveLength(0);
   });
 });
