@@ -263,3 +263,35 @@ signal comment.
 **Rule.**
 1. **Always run `npm run build`** alongside `npm test` to verify your changes. If `npm run build` fails, your code is broken and will be bounced.
 2. **Do not open a PR** until both commands pass cleanly without errors.
+
+---
+
+## G9 — Fighter touches files outside the brief's scope (do-not-touch list)
+
+**Symptom.** A Fighter delivers the requested feature correctly, but the branch also
+contains commits modifying files the brief explicitly listed as do-not-touch — typically
+CI config, documentation, or unrelated infrastructure. The extra changes look reasonable
+in isolation, which makes them easy to miss on a casual review.
+
+**First seen.** 2026-06-20 (#162 / PR #163) — Antigravity delivered `CouncilRecipe` correctly
+but the branch also included a commit modifying `.github/workflows/ci.yml` (duplicating the
+Windows MSVC fix already in flight as PR #161) and `AGENTS.md` (removing the "Windows false
+negative" documentation). Both files were in the brief's do-not-touch list. The CI change
+duplicated #161 and the AGENTS.md change was actively harmful (removing accurate context).
+
+**Cause.** The Fighter conflated two concerns: the feature it was asked to build, and an
+adjacent infrastructure fix it noticed along the way. Open weight Fighters don't have the
+context to know that a "reasonable-looking" CI change belongs in a different PR — they just
+fix what they see.
+
+**Rule.**
+1. **The do-not-touch list is a hard boundary, not a suggestion.** If the brief says
+   "do-not-touch: ci.yml, AGENTS.md", the Fighter must not modify those files — even for
+   a correct fix. The fix belongs in its own scoped PR.
+2. **Coach rebases out-of-scope commits before merge.** When a review reveals do-not-touch
+   files were modified, the Coach drops those commits via `git rebase --onto` (or
+   `git revert`) and force-pushes — the out-of-scope work does not land inside the feature
+   PR. The fix, if valid, is routed to its own issue/PR.
+3. **Briefs must state the do-not-touch list explicitly.** A Fighter cannot respect a
+   boundary it was never told about. List the files/dirs that are off-limits in every
+   brief, not just the ones in scope.
