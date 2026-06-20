@@ -30,3 +30,8 @@ dist/
 private-key.pem
 *.pem
 .runner/
+
+# --- Loop runtime state (written by the loop itself, not committed) ---
+loop-budget.md
+loop-run-log.md
+PROGRESS.md
