@@ -1526,6 +1526,38 @@ The Coach is **your own frontier model, run headless** — Claude by default, or
 - [ ] **Tier by stage:** configure a strong model (Opus-class) for **plan + judge** (the ~3× planning multiplier and the test-grounded verdict), and the Open weight Fighters for **execute**. The coach never types the code.
 - [ ] **Verdict envelope:** Claude's `--output-format json` is unwrapped by the runner (strips code fences) — keep that flag. A non-Claude Coach needs its own output→verdict adapter (**M5-9**) so the referee receives a clean `approve` / `request-changes`.
 
+#### M5-9 CoachDriver vendor reference (shipped)
+
+Each adapter lives in `src/drivers/coach-<vendor>.ts`. Select via `COACH_DRIVER` env var (default: `claude`).
+
+| Vendor | `COACH_DRIVER` | Adapter | CLI invocation | Output format | Verdict extraction |
+|---|---|---|---|---|---|
+| **Claude** (reference) | `claude` | `coach-claude.ts` | `MANAGER_CMD` (default: `claude -p --output-format json --tools "" --max-turns 1`) | `{ result: "..." }` JSON envelope | `extractJson` in `runner.ts` (unwraps envelope, strips fences, parses) |
+| **Codex CLI** (ChatGPT) | `codex` | `coach-codex.ts` | `MANAGER_CMD` (e.g. `codex --full-auto -q`) | Plain text or fenced JSON | `extractJson` in `runner.ts` (fence-strip + brace-scan; no envelope) |
+| **Gemini CLI** (Google) | `gemini` | `coach-gemini.ts` | `MANAGER_CMD` (e.g. `gemini -p`) | Plain text or fenced JSON | `extractJson` in `runner.ts` (fence-strip + brace-scan; no envelope) |
+
+**$0 auth — per vendor:**
+
+- **Claude:** `claude auth login` once (Claude.ai Max/Pro subscription, $0 marginal) **or** set `ANTHROPIC_API_KEY` (metered, required on Actions).
+- **Codex CLI (ChatGPT):** `codex auth login` once (ChatGPT Plus/Pro subscription, $0 marginal) **or** set `OPENAI_API_KEY` (metered). Install: `npm install -g @openai/codex`.
+- **Gemini CLI:** `gemini auth login` once (Google account free tier, generous rate limits) **or** set `GEMINI_API_KEY` (metered). Install: `npm install -g @google/gemini-cli`.
+
+**Example `.env` for each vendor:**
+
+```bash
+# Claude (reference — unchanged from before M5-9)
+MANAGER_CMD='claude -p --output-format json --tools "" --max-turns 1'
+COACH_DRIVER=claude
+
+# Codex CLI (ChatGPT)
+MANAGER_CMD='codex --full-auto -q'
+COACH_DRIVER=codex
+
+# Gemini CLI
+MANAGER_CMD='gemini -p'
+COACH_DRIVER=gemini
+```
+
 ### B.d — The fighters (drivers)
 
 Every fighter satisfies the same `FighterDriver` socket (`send` / `await_result` / `read_output` / `health`), so **Foreman is IDE-agnostic** — Windsurf is just the reference GUI adapter (the author's IDE), not a requirement. There are **four driver classes**; the matrix below lists concrete adapters within them. `foreman init` detects what's installed and **defaults to headless**. Install at least one; `OllamaDriver` is the cross-OS floor. Each row's name is what you list in `AGENTS` (B.b). The roster is **open** — adding your IDE/agent is a `good first issue` against the M5-3 conformance suite.
