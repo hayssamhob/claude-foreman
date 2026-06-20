@@ -30,11 +30,13 @@ export function createGeminiCoachDriver(_deps: CoachDriverDeps): CoachDriver {
     async run<T>(prompt: string): Promise<T> {
       const stdout = await new Promise<string>((resolve, reject) => {
         const child = spawn(config.managerCmd, { shell: true, windowsHide: true });
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
         child.stdin.on('error', () => {});
         let out = '';
         let err = '';
-        child.stdout.on('data', (d: Buffer) => (out += d));
-        child.stderr.on('data', (d: Buffer) => (err += d));
+        child.stdout.on('data', (d: string) => (out += d));
+        child.stderr.on('data', (d: string) => (err += d));
         child.on('error', (e: Error) => reject(new Error(`gemini spawn failed: ${e.message}`)));
         child.on('close', (code: number | null) => {
           if (code === 0) resolve(out);

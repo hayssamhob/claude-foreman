@@ -33,8 +33,10 @@ function makeFakeChild(payload: string) {
   const stdin = new EventEmitter() as EventEmitter & { write: (d: string) => void; end: () => void };
   stdin.write = () => {};
   stdin.end = () => {};
-  const stdout = new EventEmitter();
-  const stderr = new EventEmitter();
+  const stdout = new EventEmitter() as EventEmitter & { setEncoding: (e: string) => void };
+  stdout.setEncoding = () => {};
+  const stderr = new EventEmitter() as EventEmitter & { setEncoding: (e: string) => void };
+  stderr.setEncoding = () => {};
   const child = new EventEmitter() as EventEmitter & {
     stdin: typeof stdin;
     stdout: typeof stdout;
@@ -145,20 +147,18 @@ describe("CodexCoachDriver conformance", () => {
   });
 
   it("rejects when codex exits non-zero", async () => {
-    const child = makeFakeChild("error");
     // Override close to exit with code 1
     const stdin = new EventEmitter() as EventEmitter & { write: () => void; end: () => void };
     stdin.write = () => {};
     stdin.end = () => {};
     const badChild = Object.assign(new EventEmitter(), {
       stdin,
-      stdout: new EventEmitter(),
-      stderr: new EventEmitter(),
+      stdout: Object.assign(new EventEmitter(), { setEncoding: () => {} }),
+      stderr: Object.assign(new EventEmitter(), { setEncoding: () => {} }),
     });
     setImmediate(() => badChild.emit("close", 1));
     vi.mocked(spawn).mockReturnValueOnce(badChild as unknown as ReturnType<typeof spawn>);
     await expect(driver.run<unknown>("bad prompt")).rejects.toThrow(/codex exited/);
-    void child; // suppress unused warning
   });
 });
 
@@ -210,8 +210,8 @@ describe("GeminiCoachDriver conformance", () => {
     stdin2.end = () => {};
     const badChild = Object.assign(new EventEmitter(), {
       stdin: stdin2,
-      stdout: new EventEmitter(),
-      stderr: new EventEmitter(),
+      stdout: Object.assign(new EventEmitter(), { setEncoding: () => {} }),
+      stderr: Object.assign(new EventEmitter(), { setEncoding: () => {} }),
     });
     setImmediate(() => badChild.emit("close", 1));
     vi.mocked(spawn).mockReturnValueOnce(badChild as unknown as ReturnType<typeof spawn>);

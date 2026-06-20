@@ -1,5 +1,6 @@
 const http = require("node:http");
 const { execFileSync } = require("node:child_process");
+const { get_encoding } = require("tiktoken");
 
 const PORT = 3001;
 const DEVIN_BIN = "/Applications/Devin.app/Contents/Resources/app/extensions/windsurf/devin/bin/devin";
@@ -18,15 +19,68 @@ const server = http.createServer((req, res) => {
         
         // Extract text from messages
         const messages = payload.messages || [];
-        const promptText = messages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join("\n\n");
         
-        console.log(`[Proxy] Routing request to Devin... Model: ${model}, Messages: ${messages.length}`);
+        let targetCwd = process.cwd();
+        let titlePrefix = "";
+
+        const userMessages = messages.filter(m => m.role === "user");
+        if (userMessages.length > 0) {
+          const firstUserMsg = userMessages[0].content || "";
+          
+          // 1. Extract Workspace (cwd)
+          const pathMatch = firstUserMsg.match(/\/Users\/[a-zA-Z0-9_-]+\/(?:CascadeProjects|Documents\/antigravity)\/[a-zA-Z0-9_-]+/);
+          if (pathMatch) {
+            targetCwd = pathMatch[0];
+          }
+
+          // 2. Extract Title
+          const lines = firstUserMsg.split("\n").map(l => l.trim());
+          const titleLine = lines.find(l => l.length > 5 && !l.startsWith("```") && !l.startsWith("[") && !l.startsWith("{") && !l.startsWith("<"));
+          if (titleLine) {
+            const projectName = require("path").basename(targetCwd);
+            titlePrefix = `[${projectName}] ${titleLine.substring(0, 80)}...\n\n`;
+          }
+        }
+
+        // Put the title at the very top so Devin uses it as the session name.
+        // Put SYSTEM messages at the end to avoid title hijacking.
+        const systemMessages = messages.filter(m => m.role === "system");
+        const otherMessages = messages.filter(m => m.role !== "system");
+
+        let promptText = titlePrefix;
+        promptText += otherMessages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join("\n\n");
+        if (systemMessages.length > 0) {
+           promptText += "\n\n" + systemMessages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join("\n\n");
+        }
+        
+        let promptTokens = 0;
+        let completionTokens = 0;
+        try {
+          const enc = get_encoding("cl100k_base");
+          promptTokens = enc.encode(promptText).length;
+          enc.free();
+        } catch (e) {
+          console.error("[Proxy] Token count error (prompt):", e);
+        }
+
+        console.log(`[Proxy] Routing request to Devin... Model: ${model}, Messages: ${messages.length}, Approx Prompt Tokens: ${promptTokens}`);
 
         // Call Devin CLI synchronously
         const output = execFileSync(DEVIN_BIN, ["-p", promptText, "--model", model, "--permission-mode", "dangerous"], {
+          cwd: targetCwd,
           encoding: "utf8",
           stdio: ["pipe", "pipe", "inherit"],
         });
+
+        try {
+          const enc = get_encoding("cl100k_base");
+          completionTokens = enc.encode(output.trim()).length;
+          enc.free();
+        } catch (e) {
+          console.error("[Proxy] Token count error (completion):", e);
+        }
+        
+        const totalTokens = promptTokens + completionTokens;
 
         if (payload.stream) {
           res.writeHead(200, {
@@ -56,6 +110,20 @@ const server = http.createServer((req, res) => {
             choices: [{ index: 0, delta: {}, finish_reason: "stop" }]
           })}\n\n`);
           
+          // Optionally send usage chunk for streaming if supported, but typically streaming clients just ignore or read it from the final chunk
+          res.write(`data: ${JSON.stringify({
+            id: chunkId,
+            object: "chat.completion.chunk",
+            created: chunkCreated,
+            model: model,
+            choices: [],
+            usage: {
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              total_tokens: totalTokens
+            }
+          })}\n\n`);
+
           // Send done
           res.write(`data: [DONE]\n\n`);
           res.end();
@@ -77,9 +145,9 @@ const server = http.createServer((req, res) => {
               },
             ],
             usage: {
-              prompt_tokens: 0,
-              completion_tokens: 0,
-              total_tokens: 0,
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              total_tokens: totalTokens,
             },
           };
 
