@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { forecastRunCost } from "./cost-forecast.js";
 import type { CommentRow, JobRow, RevisionPointRow, Store, TaskRow } from "./state/db.js";
 import { taskBranch } from "./protocol/labels.js";
 import type { BranchState, CiState, ThreadOverview, ThreadSummary } from "./threads.js";
@@ -397,10 +398,11 @@ function displayLogin(login: string): string {
   return login.endsWith("[bot]") ? "the coach" : login;
 }
 
-function projectCard(repo: string, tasks: TaskRow[], store: Store, threadMap: ThreadMap, repoBranches: RepoBranches): string {
+function projectCard(repo: string, tasks: TaskRow[], store: Store, threadMap: ThreadMap, repoBranches: RepoBranches, trustTiers: Record<string, string>): string {
   const total = tasks.length;
   const done = tasks.filter((t) => t.status === "done").length;
   const pct = total ? Math.round((done / total) * 100) : 0;
+  const tier = trustTiers[repo] ?? "L1";
   const rows = tasks
     .map((t) => {
       const s = plainStatus(t);
@@ -431,6 +433,7 @@ function projectCard(repo: string, tasks: TaskRow[], store: Store, threadMap: Th
   return `<section class="card">
     <div class="card-head">
       <h2>${esc(projectName(repo))}</h2>
+      <span class="tier-badge">Trust tier: ${esc(tier)}</span>
       <span class="progress-label">${done} of ${total} done</span>
     </div>
     <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
@@ -563,13 +566,22 @@ export function renderDashboard(
   notice?: string,
   threadMap: ThreadMap = {},
   repoBranches: RepoBranches = {},
-  trustTier: TrustTier = "L1"
+  trustTiers: Record<string, string> = {}
 ): string {
   const tasks = store.listTasks();
   const jobs = store.recentJobs(10);
   const repoNames = [...new Set(tasks.map((t) => t.repo))];
   const attention = attentionItems(tasks, jobs, store, threadMap);
   const working = tasks.filter((t) => ["claimed", "in_review", "changes_requested"].includes(t.status)).length;
+  const cost = forecastRunCost(store);
+
+  const costHtml = `<section class="card cost-panel">
+    <h2>💰 Cost forecast</h2>
+    <p>${esc(cost.summary)}</p>
+    <p class="point-meta">
+      ${cost.remainingUsd !== null ? `Remaining budget: <strong>$${cost.remainingUsd.toFixed(2)}</strong> · Used: <strong>${cost.usedPct}%</strong>` : "No budget ceiling configured."}
+    </p>
+  </section>`;
 
   const attentionHtml = attention.length
     ? `<section class="card attention"><h2>👋 Needs you</h2><ul>${attention.join("")}</ul></section>`
@@ -582,7 +594,7 @@ export function renderDashboard(
       }</p></section>`;
 
   const projects = repoNames
-    .map((r) => projectCard(r, tasks.filter((t) => t.repo === r), store, threadMap, repoBranches))
+    .map((r) => projectCard(r, tasks.filter((t) => t.repo === r), store, threadMap, repoBranches, trustTiers))
     .join("");
 
   const repoOptions = repos
@@ -606,8 +618,9 @@ export function renderDashboard(
   .attention { border-color: #d4a72c88; background: #d4a72c12; }
   .calm { border-color: #2da44e55; background: #2da44e0d; }
   .attention ul { margin: 0.4rem 0 0; padding-left: 1.2rem; } .attention li { margin: 0.45rem 0; }
-  .card-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
   .progress-label { font-size: 0.85rem; opacity: 0.65; }
+  .tier-badge { font-size: 0.78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid #8885; }
   .bar { height: 8px; border-radius: 99px; background: #8883; overflow: hidden; margin: 0.5rem 0 1rem; }
   .bar-fill { height: 100%; background: #2da44e; transition: width 0.4s; }
   .items { list-style: none; margin: 0; padding: 0; }
@@ -681,10 +694,9 @@ export function renderDashboard(
   <h1>🤖 My AI team</h1>
   <p class="subtitle">${agentName(config.agents[0] ?? "")}${config.agents.length > 1 ? " and " + config.agents.slice(1).map(agentName).join(", ") : ""} do the work · a coach checks everything · you approve the results</p>
   ${notice ? `<p class="notice">${esc(notice)}</p>` : ""}
+  ${costHtml}
   ${attentionHtml}
   ${projects}
-  ${costPanel(store)}
-  ${trustTierPanel(trustTier)}
   <section class="card">
     <h2>🚀 Request new work</h2>
     <form method="post" action="/dashboard/new-work">

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { costForecast, FREE_AGENTS } from "../src/cost-forecast.js";
+import { costForecast, forecastRunCost, FREE_AGENTS } from "../src/cost-forecast.js";
+import { Store } from "../src/state/db.js";
 
 describe("costForecast", () => {
   const rows = [
@@ -47,4 +48,25 @@ describe("FREE_AGENTS", () => {
   it("includes ollama", () => expect(FREE_AGENTS.has("ollama")).toBe(true));
   it("includes devin-local", () => expect(FREE_AGENTS.has("devin-local")).toBe(true));
   it("does not include manager", () => expect(FREE_AGENTS.has("manager")).toBe(false));
+});
+
+describe("forecastRunCost", () => {
+  it("returns a summary for an empty ledger", () => {
+    const store = new Store(":memory:");
+    const result = forecastRunCost(store);
+    expect(result.summary).toContain("free fighters");
+    expect(result.paidUsd).toBe(0);
+    expect(result.remainingUsd).toBeNull();
+  });
+
+  it("separates free and paid agent spend", () => {
+    const store = new Store(":memory:");
+    store.recordSpend("o/r", 1, "ollama", "review", 0, 1_000, 500);
+    store.recordSpend("o/r", 2, "claude-jr", "review", 2.5, 5_000, 5_000);
+    const result = forecastRunCost(store);
+    expect(result.freeTokens).toBe(1_500);
+    expect(result.paidTokens).toBe(10_000);
+    expect(result.paidUsd).toBeCloseTo(2.5);
+    expect(result.summary).toContain("paid coach");
+  });
 });

@@ -1,3 +1,6 @@
+import { config } from "./config.js";
+import type { Store } from "./state/db.js";
+
 export const FREE_AGENTS = new Set([
   "ollama",
   "windsurf-kimi",
@@ -46,4 +49,9 @@ export function costForecast(
   const summary = `[cost] ${freeStr} | ${paidStr}${budgetStr}`;
 
   return { freeTokens, paidUsd, paidTokens, remainingUsd, usedPct, summary };
+}
+
+/** Forecast spend for the current run from the SQLite ledger. */
+export function forecastRunCost(store: Store): CostForecastResult {
+  return costForecast(store.getLedgerByAgent(0), config.maxUsd);
 }
