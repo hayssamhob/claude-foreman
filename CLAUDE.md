@@ -1,43 +1,103 @@
-# CLAUDE.md — Source of truth for AI agents on claude-foreman
+# CLAUDE.md
 
-> This file exists so every agent session starts from the same project truth instead of
-> re-deriving it. It is intentionally short — the deep content lives in the files below.
+## Project
 
-## Read these first
+Foreman is a GitHub-native autonomous coding supervisor: a Probot app (TypeScript, Vitest,
+`better-sqlite3`) where Claude acts as the strategic Coach, free/cheap "Fighter" agents do
+the tactical typing, and a Referee gate (`src/automerge.ts`) verifies every merge. Work
+flows as a queue of GitHub issues: dispatch → grill → implement → review → merge.
 
-1. **`AGENTS.md`** — mandatory workflow, done-contract checklist, key file map, CI gotchas.
-2. **`gotchas.md`** — every mistake the loop has made is documented here. Read it every session.
-3. **`SPEC.md`** — the full design blueprint (§5.7, §6.3, §8 for acceptance criteria).
+## Behavioral Rules
 
-## What this project is
+### Think Before Coding
 
-**Claude Foreman** — a GitHub-native autonomous coding supervisor. The Coach (a senior
-model) plans and reviews; free/cheap Fighters write the code; the Referee gates every merge
-on tests + acceptance criteria + budget. Work flows as a queue of GitHub issues:
-dispatch → grill → implement → review → merge.
+State your assumptions before writing code. Surface tradeoffs. Ask before guessing on
+anything that affects architecture, data, or the merge gate. Push back when a simpler
+approach exists. **Read the issue spec (`gh issue view <N>`) and `gotchas.md` before
+touching code** — every documented mistake lives there.
 
-## Tech stack
+### Simplicity First
 
-- **TypeScript** (Node 20+, ESM) — the spine
-- **Vitest** (not Jest) — `npm test` or `npx vitest run <file>`
-- **Probot** — GitHub App framework
-- **better-sqlite3** — local state (native module; Windows needs Visual Studio, see G6)
+Write the minimum code that solves the problem. No speculative features. No abstractions
+for single-use code. If a senior engineer would call it overcomplicated, simplify.
 
-## Non-negotiable workflow
+### Surgical Changes
 
-1. `gh issue view <N>` — read the grilled brief + acceptance criteria
-2. Branch `feat/issue-<N>-<slug>` or `fix/issue-<N>-<slug>`
-3. Implement following existing conventions
-4. `npm run build && npm test` must be green
-5. Open a PR with `Closes #N` in the body
-6. Post the done-signal: `gh pr comment <PR> --body "@hayssamhob ✅ #N done — <sentence>"`
+Touch only what the task requires. Do not improve adjacent code, formatting, comments, or
+naming that was not part of the ask. Match existing code style exactly (check neighboring
+files in the same directory before writing).
 
-## CI
+### Goal-Driven Execution
 
-- Matrix: ubuntu-latest, macos-latest, windows-latest
-- Windows is `continue-on-error` (known `better-sqlite3` false negative — see `gotchas.md` G6)
-- Branch protection on `main` requires ubuntu + macOS checks, 1 approval, resolved threads
+Define what success looks like before starting. Loop until that definition is met and
+verified. The done-contract for every issue is: branch `feat/issue-<N>-<slug>` created,
+`npm run build` green, `npm test` green, PR opened with `Closes #N`, and the done-signal
+comment posted (`@hayssamhob ✅ #N done — <sentence>`). Without the done-signal, automerge
+never fires.
 
-## Current focus
+### No Model Calls for Deterministic Decisions
 
-See open issues with `gh issue list`. Epics M0–M5 track the milestone roadmap.
+Routing, retry logic, status-based branching, trust-tier escalation (L1→L2→L3), and
+threshold decisions belong in code, not LLM calls. The merge gate in `src/automerge.ts` is
+deterministic by design — keep it that way. If a rule can be written, write it.
+
+### Hard Token Budgets
+
+Every session has a hard token limit: 50,000 tokens. If the limit is reached without a
+verified solution, write findings to a file (see Checkpoint below) and stop. Do not continue
+past budget. The loop-budget is also tracked in `loop-budget.md`.
+
+### One Agent, One Directory
+
+Agents running in parallel work in separate git worktrees. No two agents share a directory.
+If you need a second agent, run: `git worktree add ../agent-2-<slug> <branch-name>`. Each
+Fighter owns its own branch and working tree; the Coach never edits a Fighter's files
+mid-flight.
+
+### Checkpoint Multi-Step Work
+
+For any task longer than three steps, create `PROGRESS.md` in the working directory. Write
+to it after each step: what was done, what was found, what comes next, what is blocked. If
+the session ends before completion, the next session reads `PROGRESS.md` first and continues
+from where it stopped. (See also `loop-run-log.md` for the running loop log.)
+
+### Fail Loudly
+
+If a step fails, stop and report the failure with specifics before continuing. If a test
+passes but does not cover the actual behavior, say so. If a migration skips files, list the
+skipped files and stop. Success means verifiable, not reported. Windows CI failures on
+`better-sqlite3` are a known false negative — note them, don't paper over them.
+
+### Unique Skill Descriptions
+
+Each skill covers exactly one job. Its description cannot apply to any other skill in the
+project (e.g., `claude-foreman` vs `foreman-worker` vs `printing-press-*`). If two skills
+overlap in description, rename before deploying.
+
+### Research and Implementation Are Separate Sessions
+
+Use a subagent for any task that requires reading more than five files or querying more than
+two sources. Get a structured report. Start a clean session for implementation with only
+that report as input. Never merge research and writing into one session.
+
+### Scoped Hooks Only
+
+Every hook has an explicit condition: file extension, directory path, or session event. No
+hook runs unconditionally on every tool call. Batch logging to session end where possible.
+Run linters only on changed files. Run security checks only on files outside the test
+directory.
+
+## What Not to Touch
+
+- `dist/` — build output, regenerated by `npm run build`
+- `node_modules/` — dependencies
+- `loop-budget.md`, `loop-run-log.md` — runtime loop state, written by the loop itself
+- `.git/`, git config, branch history (never force-push, never rewrite history)
+- `migrations/archive` if/when it exists — historical migrations
+- The `trust:L1/L2/L3` ladder semantics in `src/protocol/labels.ts` without a SPEC change
+
+## Success Criteria Default
+
+When in doubt about whether a task is done: does `npm test` pass, does `npm run build`
+succeed, is the output verifiable by something other than Claude's own judgment, and has the
+done-signal been posted on the PR? If no to any of those, it is not done.

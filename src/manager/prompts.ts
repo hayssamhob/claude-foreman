@@ -3,9 +3,17 @@
 export function decomposePrompt(args: {
   epicTitle: string;
   epicBody: string;
+  comments?: { author: string; body: string }[];
   agents: string[];
   repo: string;
 }): string {
+  const commentsBlock =
+    args.comments && args.comments.length > 0
+      ? `\nDISCUSSION COMMENTS:\n${args.comments
+          .map((c) => `[${c.author}]:\n${c.body}`)
+          .join("\n\n---\n\n")}\n`
+      : "";
+
   return `You are the engineering manager of a fleet of cheap, one-shot AI coding agents ("Fighters").
 You stay strategic; the Fighters do the tactical typing. The cheaper the Fighter, the more the brief
 has to carry — a Fighter forced to *guess* a decision guesses wrong and burns a whole build + review
@@ -45,7 +53,7 @@ EPIC TITLE: ${args.epicTitle}
 
 EPIC BODY:
 ${args.epicBody}
-
+${commentsBlock}
 Set "augmentOnly": true for tasks whose artifact cannot be verified by tests, a build, or a live preview:
 - Documentation (markdown files, README, CONTRIBUTING, SPEC, gotchas.md entries)
 - Prose and config files (YAML, JSON, TOML) with no test that validates their content
@@ -53,11 +61,13 @@ Set "augmentOnly": true for tasks whose artifact cannot be verified by tests, a 
 
 Set "augmentOnly": false for all code, tests, and scripts that have an execution oracle.
 
-Respond with ONLY a JSON object, no prose, in this exact shape:
-If the epic is clear and unambiguous:
-{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec — interfaces fixed, zero open decisions>", "doneContract": ["<machine-checkable AC>", ...], "augmentOnly": <true|false>}]}
+If the comments contain decisions or clarifications that resolve ambiguity from the EPIC BODY, you MUST synthesize those decisions and return a cohesive, completely rewritten markdown body in the "updatedBody" field. This rewritten body must stand alone as the new Single Source of Truth for the Epic. Do not just append a notes section.
 
-If the epic is ambiguous, underspecified, or requires owner input before you can confidently fix the interfaces and write the specs:
+Respond with ONLY a JSON object, no prose, in this exact shape:
+If the epic and comments together are clear and unambiguous (return "updatedBody" ONLY if you synthesized comments):
+{"tasks": [{"title": "...", "agent": "<one of: ${args.agents.join("|")}>", "spec": "<full markdown spec — interfaces fixed, zero open decisions>", "doneContract": ["<machine-checkable AC>", ...], "augmentOnly": <true|false>}], "updatedBody": "<completely rewritten markdown body>"}
+
+If the epic and comments together are STILL ambiguous, underspecified, or require owner input before you can confidently fix the interfaces and write the specs:
 {"questions": ["<clarifying question 1>", "<clarifying question 2>"]}
 `;
 }
@@ -107,4 +117,32 @@ ${args.diff}
 Respond with ONLY a JSON object, no prose, no code fences, in this exact shape:
 {"verdict": "approve" | "request_changes", "summary": "<2-5 sentence overall assessment>", "plainSummary": "<2-4 sentences for a non-technical business owner: what this change does for them in plain words, what they can now do or expect, and any caveat worth knowing. No jargon, no file names.>", "addressedPointNumbers": [<numbers from the PREVIOUSLY REQUESTED FIXES list that ARE now properly addressed>], "points": ["<NEW actionable revision point>", ...]}
 "points" must be empty when approving and must NOT repeat previously requested fixes that remain open — those stay tracked automatically.`;
+}
+
+export function discussPrompt(args: {
+  epicTitle: string;
+  epicBody: string;
+  comments: { author: string; body: string }[];
+}): string {
+  const commentsBlock =
+    args.comments.length > 0
+      ? `\nDISCUSSION COMMENTS:\n${args.comments
+          .map((c) => `[${c.author}]:\n${c.body}`)
+          .join("\n\n---\n\n")}\n`
+      : "";
+
+  return `You are the Coach (Engineering Manager) of an AI coding fleet.
+The repository owner has asked you a question or initiated a discussion in the comments.
+Read the epic and the discussion, then provide a helpful, concise answer to the latest questions.
+Use a conversational tone.
+
+EPIC TITLE: ${args.epicTitle}
+
+EPIC BODY:
+${args.epicBody}
+${commentsBlock}
+
+Respond with ONLY a JSON object, no prose, in this exact shape:
+{"reply": "<Your markdown-formatted response to the user's latest comment>"}
+`;
 }

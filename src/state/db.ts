@@ -69,7 +69,7 @@ export interface CostLedgerRow {
   created_at: number;
 }
 
-export type JobType = "decompose" | "review";
+export type JobType = "decompose" | "review" | "discuss";
 export type JobStatus = "pending" | "running" | "done" | "failed" | "needs_human";
 
 export interface JobRow {
